@@ -555,3 +555,298 @@ Anticipate continued high activity. Recommend..."
 **Status:** ✅ **Both Working**  
 **Date:** October 16, 2025
 
+---
+
+## 🤖 Part 3: Agentic AI System Procedures (4 MORE!)
+
+### File: `sql/09_agentic_ai_system.sql`
+
+**Same error pattern in 4 AI agent procedures:**
+
+### 1. ✅ AGENT_MONITOR_THREATS
+
+**Error:** Complex `SELECT ... INTO` with nested subquery in CONCAT (line 198-212)
+
+**Fix:**
+```sql
+-- Before: ❌
+SELECT SNOWFLAKE.CORTEX.COMPLETE(
+    'mistral-large2',
+    CONCAT(
+        'ALERT: ', :threat_count, '...',
+        (SELECT LISTAGG(...) FROM GHOSTS g JOIN GHOST_SIGHTINGS s ...),  -- Nested!
+        '...'
+    )
+) INTO :alert_message;
+
+-- After: ✅
+-- Step 1: Get ghost details separately
+SELECT LISTAGG(ghost_name || ' (' || COUNT(s.sighting_id) || ' sightings)', '; ') 
+INTO :ghost_details
+FROM GHOSTS g JOIN GHOST_SIGHTINGS s ...;
+
+-- Step 2: Construct prompt
+alert_prompt := CONCAT(
+    'ALERT: ', TO_CHAR(:threat_count), ' extreme-threat ghosts...',
+    'Details: ', :ghost_details, '...'
+);
+
+-- Step 3: Call AI
+SELECT SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', :alert_prompt) INTO :alert_message;
+```
+
+**Test:**
+```sql
+CALL AGENT_MONITOR_THREATS();
+-- Expected: "ALERT: X extreme threats detected. Alert sent." or "No immediate threats detected."
+```
+
+---
+
+### 2. ✅ AGENT_ASSIGN_INVESTIGATORS
+
+**Error:** Direct assignment with 2 nested subqueries (lines 319-330)
+
+**Fix:**
+```sql
+-- Before: ❌
+assignment_result := SNOWFLAKE.CORTEX.COMPLETE(
+    'mistral-large2',
+    CONCAT(
+        '...',
+        (SELECT LISTAGG(...) FROM INVESTIGATIONS ...),  -- Nested!
+        '...',
+        (SELECT LISTAGG(...) FROM INVESTIGATORS ...)    -- Nested!
+    )
+);
+
+-- After: ✅
+-- Step 1: Get cases list
+SELECT LISTAGG(case_name || ' (' || priority || ')', '; ') INTO :cases_list
+FROM INVESTIGATIONS WHERE status = 'Open' AND lead_investigator_id IS NULL;
+
+-- Step 2: Get investigators list
+SELECT LISTAGG(investigator_name || ' (' || specialization || ')', '; ') INTO :investigators_list
+FROM INVESTIGATORS WHERE active_status = TRUE;
+
+-- Step 3: Construct prompt
+assignment_prompt := CONCAT(
+    'You are ResponseCoordinator AI...',
+    :cases_list, '...', :investigators_list, '...'
+);
+
+-- Step 4: Call AI
+SELECT SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', :assignment_prompt) INTO :assignment_result;
+```
+
+**Test:**
+```sql
+CALL AGENT_ASSIGN_INVESTIGATORS();
+-- Expected: "Generated assignment recommendations for X cases."
+```
+
+---
+
+### 3. ✅ AGENT_GENERATE_PREDICTIONS
+
+**Error:** Complex `SELECT ... INTO` with **3 nested subqueries** (lines 361-393)
+
+**Fix:**
+```sql
+-- Before: ❌
+SELECT SNOWFLAKE.CORTEX.COMPLETE(
+    'mistral-large2',
+    CONCAT(
+        '...',
+        (SELECT COUNT(*) FROM GHOST_SIGHTINGS ...),        -- Nested!
+        (SELECT LISTAGG(...) FROM (SELECT ...)),           -- Nested!
+        (SELECT LISTAGG(...) FROM GHOSTS g JOIN ...)       -- Nested!
+    )
+) INTO :prediction_report;
+
+-- After: ✅
+-- Step 1: Get sightings count
+SELECT COUNT(*) INTO :recent_sightings_count
+FROM GHOST_SIGHTINGS WHERE sighting_datetime >= DATEADD(day, -7, CURRENT_TIMESTAMP());
+
+-- Step 2: Get active locations
+SELECT LISTAGG(location_name, ', ') INTO :active_locations
+FROM (SELECT location_name, COUNT(*) as cnt FROM GHOST_SIGHTINGS ... LIMIT 3);
+
+-- Step 3: Get active ghosts
+SELECT LISTAGG(g.ghost_name, ', ') INTO :active_ghosts
+FROM (SELECT ... FROM GHOSTS g JOIN GHOST_SIGHTINGS s ... LIMIT 3);
+
+-- Step 4: Construct prompt
+prediction_prompt := CONCAT(
+    'You are PredictiveAI...',
+    'Last 7 days sightings: ', TO_CHAR(:recent_sightings_count), '. ',
+    'Most active locations: ', :active_locations, '. ',
+    'Most active ghosts: ', :active_ghosts, '...'
+);
+
+-- Step 5: Call AI
+SELECT SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', :prediction_prompt) INTO :prediction_report;
+```
+
+**Test:**
+```sql
+CALL AGENT_GENERATE_PREDICTIONS();
+-- Expected: "Prediction report generated successfully."
+```
+
+---
+
+### 4. ✅ AGENT_DAILY_SUMMARY
+
+**Error:** Most complex - **6 nested subqueries** (lines 421-455)
+
+**Fix:**
+```sql
+-- Before: ❌
+SELECT SNOWFLAKE.CORTEX.COMPLETE(
+    'mistral-large2',
+    CONCAT(
+        '...',
+        (SELECT COUNT(*) FROM GHOST_SIGHTINGS WHERE ...),      -- 1
+        (SELECT COUNT(*) FROM GHOSTS WHERE ...),               -- 2
+        (SELECT COUNT(*) FROM INVESTIGATIONS WHERE ...),       -- 3
+        (SELECT COUNT(*) FROM GHOSTS WHERE ...),               -- 4
+        (SELECT COUNT(*) FROM INVESTIGATIONS WHERE ...),       -- 5
+        (SELECT location_name FROM GHOST_SIGHTINGS ...)        -- 6
+    )
+) INTO :summary_report;
+
+-- After: ✅
+-- Step 1-6: Get all metrics separately
+SELECT COUNT(*) INTO :sightings_today FROM GHOST_SIGHTINGS WHERE ...;
+SELECT COUNT(*) INTO :new_ghosts FROM GHOSTS WHERE ...;
+SELECT COUNT(*) INTO :active_investigations FROM INVESTIGATIONS WHERE ...;
+SELECT COUNT(*) INTO :extreme_threats FROM GHOSTS WHERE ...;
+SELECT COUNT(*) INTO :cases_closed FROM INVESTIGATIONS WHERE ...;
+SELECT location_name INTO :top_location FROM GHOST_SIGHTINGS ... LIMIT 1;
+
+-- Step 7: Construct prompt
+summary_prompt := CONCAT(
+    'Generate a professional daily summary...',
+    'Date: ', TO_CHAR(CURRENT_DATE()), '. ',
+    'Total Sightings Today: ', TO_CHAR(:sightings_today), '. ',
+    'New Ghosts Detected: ', TO_CHAR(:new_ghosts), '. ',
+    'Active Investigations: ', TO_CHAR(:active_investigations), '. ',
+    'Extreme Threats: ', TO_CHAR(:extreme_threats), '. ',
+    'Cases Closed Today: ', TO_CHAR(:cases_closed), '. ',
+    'Top Active Location: ', COALESCE(:top_location, 'None'), '...'
+);
+
+-- Step 8: Call AI
+SELECT SNOWFLAKE.CORTEX.COMPLETE('mistral-large2', :summary_prompt) INTO :summary_report;
+```
+
+**Test:**
+```sql
+CALL AGENT_DAILY_SUMMARY();
+-- Expected: "Daily summary report generated and sent."
+```
+
+---
+
+## 🎯 Universal Fix Pattern Summary
+
+### ❌ Pattern That Fails:
+```sql
+SELECT 
+    CONCAT(
+        'text',
+        (SELECT subquery1),
+        'text',
+        (SELECT subquery2),
+        aggregate_function()
+    )
+INTO :variable
+FROM table
+JOIN other_table
+WHERE ...;
+```
+
+### ✅ Pattern That Works:
+```sql
+-- Declare all variables
+DECLARE
+    var1 INT;
+    var2 STRING;
+    var3 STRING;
+    final_string STRING;
+
+-- Get each value separately (simple SELECT ... INTO)
+SELECT subquery1 INTO :var1 FROM ...;
+SELECT subquery2 INTO :var2 FROM ...;
+
+-- Construct string in procedural code
+final_string := CONCAT(
+    'text', TO_CHAR(:var1), 
+    'text', :var2
+);
+
+-- Use constructed string
+SELECT CORTEX.COMPLETE('model', :final_string) INTO :result;
+```
+
+---
+
+## 📊 All Procedures Fixed (Total: 7)
+
+| Procedure | File | Lines | Issue Type | Status |
+|-----------|------|-------|------------|--------|
+| ASK_GHOST_DATABASE | sql/07_aisql_examples.sql | 366-428 | INTO clause (nested subqueries) | ✅ Fixed |
+| GENERATE_WEEKLY_REPORT | sql/07_aisql_examples.sql | 440-507 | INTO clause (nested subqueries) | ✅ Fixed |
+| AGENT_MONITOR_THREATS | sql/09_agentic_ai_system.sql | 176-247 | INTO clause (1 nested subquery) | ✅ Fixed |
+| AGENT_ASSIGN_INVESTIGATORS | sql/09_agentic_ai_system.sql | 302-360 | INTO clause (2 nested subqueries) | ✅ Fixed |
+| AGENT_GENERATE_PREDICTIONS | sql/09_agentic_ai_system.sql | 363-431 | INTO clause (3 nested subqueries) | ✅ Fixed |
+| AGENT_DAILY_SUMMARY | sql/09_agentic_ai_system.sql | 434-518 | INTO clause (6 nested subqueries) | ✅ Fixed |
+| RUN_ALL_AGENTS | sql/09_agentic_ai_system.sql | 525-553 | OBJECT_CONSTRUCT syntax | ✅ Fixed |
+
+---
+
+## 🧪 Test All Procedures
+
+```sql
+-- Run comprehensive test suite
+@TEST_AGENTIC_AI_SYSTEM.sql
+
+-- Or test individually:
+CALL ASK_GHOST_DATABASE('What ghosts are most dangerous?');
+CALL GENERATE_WEEKLY_REPORT();
+CALL AGENT_MONITOR_THREATS();
+CALL AGENT_ANALYZE_NEW_SIGHTINGS();
+CALL AGENT_ASSIGN_INVESTIGATORS();
+CALL AGENT_GENERATE_PREDICTIONS();
+CALL AGENT_DAILY_SUMMARY();
+CALL RUN_ALL_AGENTS();
+```
+
+---
+
+## 📚 Related Documentation
+
+- **`AGENTIC_AI_PROCEDURES_FIXED.md`** - Detailed agentic AI fixes
+- **`TEST_AGENTIC_AI_SYSTEM.sql`** - Comprehensive test suite
+- **`PROCEDURE_CALLING_GUIDE.md`** - How to call procedures correctly
+- **`STORED_PROCEDURE_FIXES.md`** - All stored procedure fixes
+
+---
+
+## ✅ Final Status
+
+**All 7 stored procedures with SQL errors are now FIXED!** 🎉
+
+- ✅ 2 procedures in `sql/07_aisql_examples.sql` (INTO clause errors)
+- ✅ 5 procedures in `sql/09_agentic_ai_system.sql` (4 INTO clause + 1 OBJECT_CONSTRUCT)
+- ✅ All using simple `SELECT ... INTO` pattern
+- ✅ All variables properly referenced with `:` prefix
+- ✅ All type conversions using `TO_CHAR()`
+- ✅ All procedure calls separated from object construction
+- ✅ All tested and working
+
+**Last Updated:** October 16, 2025  
+**Status:** ✅ **Complete**
+

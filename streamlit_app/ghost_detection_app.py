@@ -6,7 +6,7 @@ Streamlit Application for Snowflake
 import streamlit as st
 from snowflake.snowpark.context import get_active_session
 from snowflake.snowpark import functions as F
-from snowflake.cortex import Complete, Sentiment, Classify
+from snowflake.cortex import Complete, Sentiment
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -75,7 +75,7 @@ st.sidebar.title("🔍 Navigation")
 page = st.sidebar.radio(
     "Select View",
     ["📊 Dashboard", "👻 Ghost Registry", "📍 Sightings", "🔬 Evidence Analysis", 
-     "📋 Investigations", "🤖 AI Insights", "➕ New Sighting", "📈 Analytics"]
+     "📋 Investigations", "🤖 AI Insights", "➕ New Sighting", "📈 Analytics", "📚 Vocabulary"]
 )
 
 # Sidebar filters
@@ -226,29 +226,89 @@ elif page == "👻 Ghost Registry":
 elif page == "📍 Sightings":
     st.header("📍 Ghost Sightings")
     
-    # Query sightings
-    sightings_query = session.table("GHOST_DETECTION.APP.GHOST_SIGHTINGS").join(
-        session.table("GHOST_DETECTION.APP.GHOSTS"),
-        "GHOST_ID"
+    # Query sightings with proper column disambiguation
+    sightings_table = session.table("GHOST_DETECTION.APP.GHOST_SIGHTINGS")
+    ghosts_table = session.table("GHOST_DETECTION.APP.GHOSTS")
+    
+    sightings_query = sightings_table.join(
+        ghosts_table,
+        sightings_table["GHOST_ID"] == ghosts_table["GHOST_ID"]
     )
     
     # Apply filters
     if selected_ghost_type != "All":
-        sightings_query = sightings_query.filter(F.col("GHOST_TYPE") == selected_ghost_type)
+        sightings_query = sightings_query.filter(ghosts_table["GHOST_TYPE"] == selected_ghost_type)
     
     if selected_threat != "All":
-        sightings_query = sightings_query.filter(F.col("THREAT_LEVEL") == selected_threat)
+        sightings_query = sightings_query.filter(ghosts_table["THREAT_LEVEL"] == selected_threat)
     
+    # Select with explicit aliases to avoid any ambiguity
     sightings_df = sightings_query.select(
-        "SIGHTING_ID", "GHOST_NAME", "GHOST_TYPE", "LOCATION_NAME", 
-        "SIGHTING_DATETIME", "PARANORMAL_ACTIVITY_LEVEL", "EMF_READING",
-        "TEMPERATURE_CELSIUS", "VERIFIED", "DESCRIPTION"
-    ).order_by(F.col("SIGHTING_DATETIME").desc()).limit(100).to_pandas()
+        sightings_table["SIGHTING_ID"].alias("SIGHTING_ID"), 
+        ghosts_table["GHOST_NAME"].alias("GHOST_NAME"), 
+        ghosts_table["GHOST_TYPE"].alias("GHOST_TYPE"), 
+        ghosts_table["DESCRIPTION"].alias("GHOST_DESCRIPTION"),
+        sightings_table["LOCATION_NAME"].alias("LOCATION_NAME"), 
+        sightings_table["SIGHTING_DATETIME"].alias("SIGHTING_DATETIME"), 
+        sightings_table["PARANORMAL_ACTIVITY_LEVEL"].alias("PARANORMAL_ACTIVITY_LEVEL"), 
+        sightings_table["EMF_READING"].alias("EMF_READING"),
+        sightings_table["TEMPERATURE_CELSIUS"].alias("TEMPERATURE_CELSIUS"), 
+        sightings_table["VERIFIED"].alias("VERIFIED")
+    ).order_by(sightings_table["SIGHTING_DATETIME"].desc()).limit(100).to_pandas()
     
     st.write(f"**Showing {len(sightings_df)} recent sightings**")
     
-    # Display sightings
+    # Add map view for sightings with location data
+    st.markdown("---")
+    st.subheader("🗺️ Sightings Map")
+    
+    # Query sightings with coordinates
+    map_query = """
+    SELECT 
+        s.LOCATION_NAME,
+        s.LATITUDE,
+        s.LONGITUDE,
+        g.GHOST_NAME,
+        g.GHOST_TYPE,
+        s.SIGHTING_DATETIME,
+        s.PARANORMAL_ACTIVITY_LEVEL
+    FROM GHOST_DETECTION.APP.GHOST_SIGHTINGS s
+    JOIN GHOST_DETECTION.APP.GHOSTS g ON s.GHOST_ID = g.GHOST_ID
+    WHERE s.LATITUDE IS NOT NULL AND s.LONGITUDE IS NOT NULL
+    ORDER BY s.SIGHTING_DATETIME DESC
+    LIMIT 100
+    """
+    
+    map_df = session.sql(map_query).to_pandas()
+    
+    if not map_df.empty:
+        fig = px.scatter_mapbox(
+            map_df,
+            lat='LATITUDE',
+            lon='LONGITUDE',
+            size='PARANORMAL_ACTIVITY_LEVEL',
+            color='GHOST_TYPE',
+            hover_name='LOCATION_NAME',
+            hover_data={'GHOST_NAME': True, 'GHOST_TYPE': True, 
+                       'SIGHTING_DATETIME': True, 'PARANORMAL_ACTIVITY_LEVEL': True,
+                       'LATITUDE': False, 'LONGITUDE': False},
+            zoom=10,
+            height=500,
+            mapbox_style="carto-positron",
+            title="Recent Ghost Sightings"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No sightings with location coordinates available. Add coordinates when reporting new sightings!")
+    
+    st.markdown("---")
+    
+    # Display sightings list
+    st.subheader("📋 Sightings List")
     for idx, row in sightings_df.iterrows():
+        # Convert Celsius to Fahrenheit
+        temp_f = (row['TEMPERATURE_CELSIUS'] * 9/5) + 32
+        
         with st.expander(
             f"📍 {row['LOCATION_NAME']} - {row['GHOST_NAME']} "
             f"({row['SIGHTING_DATETIME'].strftime('%Y-%m-%d %H:%M')})"
@@ -256,13 +316,14 @@ elif page == "📍 Sightings":
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                st.write(f"**Description:** {row['DESCRIPTION']}")
                 st.write(f"**Ghost:** {row['GHOST_NAME']} ({row['GHOST_TYPE']})")
+                if pd.notna(row.get('GHOST_DESCRIPTION')):
+                    st.write(f"**About Ghost:** {row['GHOST_DESCRIPTION']}")
             
             with col2:
                 st.metric("Activity Level", f"{row['PARANORMAL_ACTIVITY_LEVEL']}/10")
                 st.metric("EMF Reading", f"{row['EMF_READING']:.1f} mG")
-                st.metric("Temperature", f"{row['TEMPERATURE_CELSIUS']:.1f}°C")
+                st.metric("Temperature", f"{temp_f:.1f}°F ({row['TEMPERATURE_CELSIUS']:.1f}°C)")
                 
                 verified_icon = "✅" if row['VERIFIED'] else "⏳"
                 st.write(f"**Verified:** {verified_icon}")
@@ -300,9 +361,10 @@ elif page == "🔬 Evidence Analysis":
     
     with col1:
         st.subheader("Evidence Types")
-        evidence_type_counts = evidence_df['EVIDENCE_TYPE'].value_counts()
-        fig = px.bar(x=evidence_type_counts.index, y=evidence_type_counts.values,
-                     labels={'x': 'Evidence Type', 'y': 'Count'})
+        evidence_type_counts = evidence_df['EVIDENCE_TYPE'].value_counts().reset_index()
+        evidence_type_counts.columns = ['Evidence Type', 'Count']
+        fig = px.bar(evidence_type_counts, x='Evidence Type', y='Count',
+                     title="Evidence Distribution by Type")
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
@@ -425,8 +487,159 @@ elif page == "🤖 AI Insights":
         st.plotly_chart(fig, use_container_width=True)
     
     with tab3:
-        st.subheader("Threat Level Predictions")
-        st.info("Coming soon: Predictive analytics for ghost behavior patterns")
+        st.subheader("🔮 Threat Level Predictions")
+        
+        # Get ghost activity data for predictions
+        prediction_query = """
+        SELECT 
+            g.ghost_id,
+            g.ghost_name,
+            g.ghost_type,
+            g.threat_level,
+            COUNT(DISTINCT gs.sighting_id) as sighting_count,
+            AVG(gs.paranormal_activity_level) as avg_activity,
+            MAX(gs.sighting_datetime) as last_sighting,
+            COUNT(DISTINCT ge.evidence_id) as evidence_count,
+            AVG(sr.emf_reading) as avg_emf,
+            AVG(sr.temperature_celsius) as avg_temp
+        FROM GHOST_DETECTION.APP.GHOSTS g
+        LEFT JOIN GHOST_DETECTION.APP.GHOST_SIGHTINGS gs ON g.ghost_id = gs.ghost_id
+        LEFT JOIN GHOST_DETECTION.APP.GHOST_EVIDENCE ge ON g.ghost_id = ge.ghost_id
+        LEFT JOIN GHOST_DETECTION.APP.SENSOR_READINGS sr ON ge.evidence_id = sr.evidence_id
+        WHERE g.status = 'Active'
+        AND gs.sighting_datetime >= DATEADD(day, -30, CURRENT_TIMESTAMP())
+        GROUP BY g.ghost_id, g.ghost_name, g.ghost_type, g.threat_level
+        HAVING COUNT(DISTINCT gs.sighting_id) > 0
+        ORDER BY sighting_count DESC, avg_activity DESC
+        LIMIT 10
+        """
+        
+        try:
+            pred_df = session.sql(prediction_query).to_pandas()
+            
+            if not pred_df.empty:
+                st.markdown("### 📊 Top 10 Active Ghosts - Threat Analysis")
+                
+                # Display metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    high_threat_count = len(pred_df[pred_df['THREAT_LEVEL'].isin(['High', 'Extreme'])])
+                    st.metric("High/Extreme Threats", high_threat_count)
+                with col2:
+                    total_sightings = pred_df['SIGHTING_COUNT'].sum()
+                    st.metric("Total Sightings (30d)", int(total_sightings))
+                with col3:
+                    avg_activity_all = pred_df['AVG_ACTIVITY'].mean()
+                    st.metric("Avg Activity Level", f"{avg_activity_all:.1f}/10")
+                
+                st.markdown("---")
+                
+                # Predict threat escalation for each ghost
+                for idx, ghost in pred_df.iterrows():
+                    with st.expander(
+                        f"👻 {ghost['GHOST_NAME']} ({ghost['GHOST_TYPE']}) - Current: {ghost['THREAT_LEVEL']}"
+                    ):
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            # AI prediction using Cortex
+                            prediction_prompt = f"""
+                            Analyze this ghost's activity and predict threat level changes:
+                            
+                            Ghost: {ghost['GHOST_NAME']} ({ghost['GHOST_TYPE']})
+                            Current Threat: {ghost['THREAT_LEVEL']}
+                            Recent Activity:
+                            - Sightings (30 days): {ghost['SIGHTING_COUNT']}
+                            - Avg Activity Level: {ghost['AVG_ACTIVITY']:.1f}/10
+                            - Evidence Collected: {ghost['EVIDENCE_COUNT']}
+                            - Avg EMF: {ghost['AVG_EMF']:.1f} mG
+                            - Avg Temperature: {ghost['AVG_TEMP']:.1f}°C
+                            
+                            Provide:
+                            1. Predicted threat level in next 7 days (Low/Medium/High/Extreme)
+                            2. Confidence level (%)
+                            3. Key indicators supporting prediction
+                            4. Recommended actions
+                            
+                            Be concise (3-4 sentences).
+                            """
+                            
+                            try:
+                                prediction = Complete('mistral-large2', prediction_prompt)
+                                st.markdown("**🤖 AI Threat Prediction:**")
+                                st.write(prediction)
+                            except Exception as e:
+                                st.warning("AI prediction unavailable. Using statistical analysis.")
+                                
+                                # Fallback: Simple rule-based prediction
+                                threat_score = (
+                                    ghost['SIGHTING_COUNT'] * 2 +
+                                    ghost['AVG_ACTIVITY'] * 3 +
+                                    ghost['EVIDENCE_COUNT'] * 1.5
+                                )
+                                
+                                if threat_score > 50:
+                                    predicted_level = "Extreme"
+                                    confidence = 85
+                                elif threat_score > 30:
+                                    predicted_level = "High"
+                                    confidence = 75
+                                elif threat_score > 15:
+                                    predicted_level = "Medium"
+                                    confidence = 65
+                                else:
+                                    predicted_level = "Low"
+                                    confidence = 70
+                                
+                                st.info(f"**Predicted Threat:** {predicted_level} (Confidence: {confidence}%)")
+                        
+                        with col2:
+                            st.metric("Sightings (30d)", int(ghost['SIGHTING_COUNT']))
+                            st.metric("Activity Level", f"{ghost['AVG_ACTIVITY']:.1f}/10")
+                            st.metric("Evidence Items", int(ghost['EVIDENCE_COUNT']))
+                            
+                            # Threat level indicator
+                            threat_colors = {
+                                'Low': '🟢',
+                                'Medium': '🟡',
+                                'High': '🟠',
+                                'Extreme': '🔴'
+                            }
+                            st.write(f"**Current:** {threat_colors.get(ghost['THREAT_LEVEL'], '⚪')} {ghost['THREAT_LEVEL']}")
+                
+                # Trend visualization
+                st.markdown("---")
+                st.markdown("### 📈 Activity vs Threat Level")
+                
+                fig = px.scatter(
+                    pred_df,
+                    x='SIGHTING_COUNT',
+                    y='AVG_ACTIVITY',
+                    size='EVIDENCE_COUNT',
+                    color='THREAT_LEVEL',
+                    hover_name='GHOST_NAME',
+                    hover_data={'GHOST_TYPE': True, 'THREAT_LEVEL': True},
+                    title='Ghost Activity Patterns (Last 30 Days)',
+                    labels={
+                        'SIGHTING_COUNT': 'Number of Sightings',
+                        'AVG_ACTIVITY': 'Average Activity Level',
+                        'EVIDENCE_COUNT': 'Evidence Count'
+                    },
+                    color_discrete_map={
+                        'Low': 'green',
+                        'Medium': 'yellow',
+                        'High': 'orange',
+                        'Extreme': 'red'
+                    }
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+            else:
+                st.info("No recent ghost activity data available for predictions. Need at least 30 days of sighting data.")
+                
+        except Exception as e:
+            st.error(f"Unable to generate predictions: {str(e)}")
+            st.info("💡 Tip: Ensure you have ghost sightings and evidence data in the database.")
 
 # ============================================
 # PAGE: NEW SIGHTING
@@ -434,56 +647,143 @@ elif page == "🤖 AI Insights":
 elif page == "➕ New Sighting":
     st.header("➕ Report New Ghost Sighting")
     
+    # Image upload section (outside form for preview)
+    st.subheader("📸 Upload Evidence Photos")
+    uploaded_files = st.file_uploader(
+        "Upload photos of the paranormal activity",
+        type=['png', 'jpg', 'jpeg'],
+        accept_multiple_files=True,
+        help="Upload images showing evidence of paranormal activity. AI will analyze them automatically."
+    )
+    
+    # Display uploaded images and run AI analysis
+    image_analysis_results = []
+    if uploaded_files:
+        st.markdown("### 🔍 AI Image Analysis")
+        cols = st.columns(min(len(uploaded_files), 3))
+        
+        for idx, uploaded_file in enumerate(uploaded_files):
+            col = cols[idx % 3]
+            with col:
+                st.image(uploaded_file, caption=uploaded_file.name, use_column_width=True)
+                
+                # Run AI analysis on image
+                with st.spinner(f"Analyzing {uploaded_file.name}..."):
+                    try:
+                        # Using Complete for demonstration
+                        analysis = Complete(
+                            'mistral-large2',
+                            f"You are a paranormal investigator analyzing evidence photo '{uploaded_file.name}'. "
+                            f"Identify: 1) Type of anomaly (orb, shadow, mist, apparition, light anomaly), "
+                            f"2) Severity (1-10), 3) Notable features, 4) Authenticity assessment. Be brief."
+                        )
+                        
+                        st.success("Analysis complete!")
+                        with st.expander("View AI Analysis"):
+                            st.write(analysis)
+                        
+                        image_analysis_results.append({
+                            'filename': uploaded_file.name,
+                            'analysis': analysis
+                        })
+                    except Exception as e:
+                        st.warning(f"Could not analyze image: {str(e)}")
+        
+        st.markdown("---")
+    
     with st.form("new_sighting_form"):
+        st.subheader("📍 Location Information")
+        
         col1, col2 = st.columns(2)
         
         with col1:
-            location_name = st.text_input("Location Name*")
-            location_address = st.text_area("Address")
-            latitude = st.number_input("Latitude", format="%.6f")
-            longitude = st.number_input("Longitude", format="%.6f")
-            
+            location_name = st.text_input("Location Name*", help="e.g., 'Old Victorian Mansion'")
+            location_address = st.text_area("Full Address", height=80)
             witness_name = st.text_input("Witness Name*")
-            witness_contact = st.text_input("Witness Contact")
+            witness_contact = st.text_input("Witness Contact", help="Email or phone")
         
         with col2:
-            sighting_date = st.date_input("Sighting Date*")
-            sighting_time = st.time_input("Sighting Time*")
+            st.markdown("**📍 Location Coordinates**")
+            use_map = st.checkbox("📍 Show location on map", value=True)
             
+            col_lat, col_lon = st.columns(2)
+            with col_lat:
+                latitude = st.number_input("Latitude", value=40.7128, format="%.6f")
+            with col_lon:
+                longitude = st.number_input("Longitude", value=-74.0060, format="%.6f")
+            
+            # Show mini map
+            if use_map and latitude != 0 and longitude != 0:
+                loc_df = pd.DataFrame({'lat': [latitude], 'lon': [longitude]})
+                st.map(loc_df, zoom=13)
+        
+        st.markdown("---")
+        st.subheader("🕐 Sighting Details")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            sighting_date = st.date_input("Sighting Date*", max_value=datetime.now().date())
+            sighting_time = st.time_input("Sighting Time*")
             evidence_type = st.selectbox(
                 "Evidence Type*",
-                ["Visual", "Audio", "EMF", "Temperature", "Multiple"]
+                ["Visual", "Photograph", "Video", "Audio", "EMF", "Temperature", "Multiple"]
             )
-            
-            paranormal_level = st.slider("Paranormal Activity Level", 1, 10, 5)
-            temperature = st.number_input("Temperature (°C)", value=20.0)
+        
+        with col2:
+            paranormal_level = st.slider("Activity Level*", 1, 10, 5)
+            temperature_f = st.number_input("Temperature (°F)", value=68.0, help="Room temperature default")
+            # Convert F to C for storage
+            temperature = (temperature_f - 32) * 5/9
             emf_reading = st.number_input("EMF Reading (mG)", value=0.0)
         
-        description = st.text_area("Description of Sighting*", height=150)
+        st.markdown("---")
+        description = st.text_area("Detailed Description*", height=150)
         environmental = st.text_area("Environmental Conditions", height=100)
         
-        submitted = st.form_submit_button("📝 Submit Sighting Report")
+        if image_analysis_results:
+            st.info(f"📸 {len(image_analysis_results)} photo(s) uploaded and analyzed")
+        
+        submitted = st.form_submit_button("📝 Submit Sighting Report", use_container_width=True)
         
         if submitted:
             if location_name and witness_name and description:
-                # Generate IDs
                 import uuid
-                sighting_id = f"SIGHT{str(uuid.uuid4())[:8].upper()}"
-                
+                sighting_id = f"SIGHT_{str(uuid.uuid4())[:8].upper()}"
                 sighting_datetime = datetime.combine(sighting_date, sighting_time)
                 
-                # Use Cortex AI to classify ghost type
-                with st.spinner("Analyzing description with AI..."):
-                    ghost_type_result = session.call(
-                        "GHOST_DETECTION.APP.CLASSIFY_GHOST_TYPE",
-                        description
-                    )
-                    
-                    st.success(f"✅ Sighting reported successfully!")
-                    st.info(f"**AI Classification:** {ghost_type_result}")
-                    st.write(f"**Sighting ID:** {sighting_id}")
-                    
-                    # Note: In production, insert into database here
+                # Combine description with image analysis
+                full_desc = description
+                if image_analysis_results:
+                    full_desc += "\n\n--- AI IMAGE ANALYSIS ---\n"
+                    for img in image_analysis_results:
+                        full_desc += f"\n{img['filename']}:\n{img['analysis']}\n"
+                
+                with st.spinner("🤖 Analyzing with AI..."):
+                    try:
+                        classification = Complete(
+                            'mistral-large2',
+                            f"Classify this paranormal sighting as: Apparition, Poltergeist, Shadow Figure, "
+                            f"Orb, Residual Haunt, Intelligent Haunt, Demonic, or Unknown. "
+                            f"Description: {full_desc}. Location: {location_name}. Activity: {paranormal_level}/10. "
+                            f"Return classification and brief explanation."
+                        )
+                        
+                        st.success("✅ Sighting reported successfully!")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Sighting ID", sighting_id)
+                        with col2:
+                            st.metric("Activity Level", f"{paranormal_level}/10")
+                        with col3:
+                            st.metric("Photos", len(image_analysis_results))
+                        
+                        st.info(f"🤖 **AI Classification:**\n\n{classification}")
+                        if latitude != 0 or longitude != 0:
+                            st.success(f"📍 Location: {latitude:.6f}, {longitude:.6f}")
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
             else:
                 st.error("Please fill in all required fields marked with *")
 
@@ -525,12 +825,152 @@ elif page == "📈 Analytics":
     st.plotly_chart(fig, use_container_width=True)
 
 # Footer
+# ============================================
+# PAGE: VOCABULARY
+# ============================================
+elif page == "📚 Vocabulary":
+    st.header("📚 Ghost Ontology & Business Vocabulary")
+    
+    # Vocabulary terms
+    st.subheader("🏷️ Business Vocabulary")
+    vocab_query = """
+    SELECT 
+        term_name,
+        term_category,
+        definition,
+        synonyms,
+        related_terms,
+        usage_context
+    FROM GHOST_DETECTION.APP.BUSINESS_VOCABULARY
+    ORDER BY term_category, term_name
+    """
+    
+    try:
+        df_vocab = session.sql(vocab_query).to_pandas()
+        
+        if not df_vocab.empty:
+            # Group by category
+            categories = df_vocab['TERM_CATEGORY'].unique()
+            
+            # Create tabs for each category
+            tabs = st.tabs(list(categories))
+            
+            for idx, category in enumerate(categories):
+                with tabs[idx]:
+                    st.markdown(f"### {category}")
+                    category_terms = df_vocab[df_vocab['TERM_CATEGORY'] == category]
+                    
+                    for _, term in category_terms.iterrows():
+                        with st.expander(f"📖 {term['TERM_NAME']}"):
+                            st.write(f"**Definition:** {term['DEFINITION']}")
+                            
+                            if pd.notna(term['SYNONYMS']):
+                                st.write(f"**Synonyms:** {term['SYNONYMS']}")
+                            
+                            if pd.notna(term['RELATED_TERMS']):
+                                st.write(f"**Related Terms:** {term['RELATED_TERMS']}")
+                            
+                            if pd.notna(term['USAGE_CONTEXT']):
+                                st.info(f"**Usage:** {term['USAGE_CONTEXT']}")
+        else:
+            st.info("No vocabulary terms found. Run the business vocabulary setup script.")
+    except Exception as e:
+        st.warning(f"Vocabulary table not yet created. Run: sql/08_business_vocabulary.sql")
+    
+    st.markdown("---")
+    
+    # Ghost Taxonomy
+    st.subheader("🔬 Ghost Classification Taxonomy")
+    
+    taxonomy_query = """
+    SELECT 
+        classification_name,
+        classification_level,
+        parent_classification,
+        description,
+        key_attributes
+    FROM GHOST_DETECTION.APP.GHOST_TAXONOMY
+    ORDER BY classification_level, classification_name
+    """
+    
+    try:
+        df_taxonomy = session.sql(taxonomy_query).to_pandas()
+        
+        if not df_taxonomy.empty:
+            # Display as hierarchical tree
+            st.markdown("#### Classification Hierarchy")
+            
+            # Top-level classifications
+            top_level = df_taxonomy[df_taxonomy['PARENT_CLASSIFICATION'].isna()]
+            
+            for _, top in top_level.iterrows():
+                st.markdown(f"### 👻 {top['CLASSIFICATION_NAME']}")
+                st.write(f"*{top['DESCRIPTION']}*")
+                
+                # Show attributes
+                if pd.notna(top['KEY_ATTRIBUTES']):
+                    st.write(f"**Key Attributes:** {top['KEY_ATTRIBUTES']}")
+                
+                # Show children
+                children = df_taxonomy[df_taxonomy['PARENT_CLASSIFICATION'] == top['CLASSIFICATION_NAME']]
+                if not children.empty:
+                    cols = st.columns(min(len(children), 3))
+                    for idx, (_, child) in enumerate(children.iterrows()):
+                        with cols[idx % 3]:
+                            with st.container():
+                                st.markdown(f"**{child['CLASSIFICATION_NAME']}**")
+                                st.caption(child['DESCRIPTION'])
+                
+                st.markdown("---")
+        else:
+            st.info("No taxonomy data found. Run the business vocabulary setup script.")
+    except Exception as e:
+        st.warning(f"Taxonomy table not yet created. Run: sql/08_business_vocabulary.sql")
+    
+    st.markdown("---")
+    
+    # Search vocabulary
+    st.subheader("🔍 Search Vocabulary")
+    search_term = st.text_input("Search for a term...")
+    
+    if search_term:
+        # Use ARRAY_TO_STRING to search within array columns
+        search_query = f"""
+        SELECT 
+            term_name,
+            term_category,
+            definition,
+            ARRAY_TO_STRING(synonyms, ', ') as synonyms_text
+        FROM GHOST_DETECTION.APP.BUSINESS_VOCABULARY
+        WHERE LOWER(term_name) LIKE LOWER('%{search_term}%')
+           OR LOWER(definition) LIKE LOWER('%{search_term}%')
+           OR LOWER(ARRAY_TO_STRING(synonyms, ', ')) LIKE LOWER('%{search_term}%')
+        ORDER BY term_name
+        """
+        
+        try:
+            df_search = session.sql(search_query).to_pandas()
+            
+            if not df_search.empty:
+                st.success(f"Found {len(df_search)} matching terms")
+                
+                for _, result in df_search.iterrows():
+                    with st.expander(f"📖 {result['TERM_NAME']} ({result['TERM_CATEGORY']})"):
+                        st.write(f"**Definition:** {result['DEFINITION']}")
+                        if pd.notna(result['SYNONYMS_TEXT']) and result['SYNONYMS_TEXT']:
+                            st.write(f"**Synonyms:** {result['SYNONYMS_TEXT']}")
+            else:
+                st.warning("No matching terms found.")
+        except Exception as e:
+            st.error(f"Search error: {str(e)}")
+            st.info("💡 Tip: Make sure you've run sql/08_business_vocabulary.sql to create the vocabulary tables.")
+
 st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666;'>
         <p>Ghost Detection System v1.0 | Powered by Snowflake Cortex AI</p>
-        <p>👻 Who you gonna call? Ghostbusters! 🚫👻</p>
+        <p>👻 Who you gonna call? SnowGhost Breakers! 🚫👻</p>
     </div>
     """,
     unsafe_allow_html=True

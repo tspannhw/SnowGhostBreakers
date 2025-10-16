@@ -23,7 +23,6 @@ streamlit>=1.28.0
 
 # MCP (Model Context Protocol)
 mcp>=0.9.0
-anthropic-mcp>=0.1.0
 
 # AI/ML frameworks
 anthropic>=0.18.0
@@ -31,7 +30,7 @@ anthropic>=0.18.0
 # Additional utilities
 python-dotenv>=1.0.0
 pyyaml>=6.0
-asyncio>=3.4.3
+# Note: asyncio is built-in to Python 3.4+, no need to install
 
 # Jupyter notebook support (optional)
 jupyter>=1.0.0

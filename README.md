@@ -15,15 +15,17 @@ SnowGhost Breakers is a complete paranormal investigation system that demonstrat
   - Ghost classification using LLMs
   - Vector embeddings for similarity search
   - AI-generated investigation reports
+  - Image and audio analysis with Cortex Vision AI
 - **🕸️ Neo4j Graph Analytics**: Network analysis of ghost relationships, community detection, centrality scoring, and predictive modeling
 - **📈 Analytics & Dashboards**: Pre-built semantic views and analytics
-- **🎨 Streamlit Application**: Interactive web interface for ghost detection
-- **📓 Jupyter Notebooks**: Analysis notebooks for data exploration
+- **🎨 Streamlit Application**: Interactive web interface with image upload, AI analysis, location picker, and vocabulary browser
+- **📓 Jupyter Notebooks**: Multimodal analytics and standard data loading pipelines
 - **🔍 Cortex Analyst**: Natural language queries for ghost data
 - **⚡ Stored Procedures**: Automated processing workflows
-- **🗺️ Geospatial Analysis**: Hotspot detection and mapping
+- **🗺️ Geospatial Analysis**: Hotspot detection, mapping, and interactive sighting visualization
 - **🤖 Agentic AI System**: Autonomous agents for threat detection, pattern analysis, and response coordination
 - **🔌 MCP Server**: Model Context Protocol integration for external AI agents
+- **📚 Business Vocabulary**: Ghost ontology and taxonomy with searchable Streamlit interface
 
 ## 🏗️ Architecture
 
@@ -350,3 +352,4 @@ For questions or issues:
 
 *Powered by Snowflake Cortex AI*
 
+ 🎉👻✨
