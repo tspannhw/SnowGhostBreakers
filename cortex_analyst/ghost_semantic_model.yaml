@@ -1,12 +1,15 @@
 # ============================================
 # Cortex Analyst Semantic Model
-# Ghost Detection and Analysis System
+# SnowGhost Breakers - Complete Ghost Detection and Analysis System
 # ============================================
 
-name: "Ghost Detection Analytics"
-description: "Semantic model for analyzing ghost sightings, investigations, and paranormal activity patterns"
+name: "SnowGhost Breakers Analytics"
+description: "Comprehensive semantic model for analyzing ghost sightings, investigations, evidence, and paranormal activity patterns"
 
 tables:
+  # ====================
+  # GHOSTS TABLE
+  # ====================
   - name: "GHOST_DETECTION.APP.GHOSTS"
     description: "Master registry of detected ghosts and paranormal entities"
     base_table:
@@ -15,172 +18,565 @@ tables:
       table: "GHOSTS"
     dimensions:
       - name: "ghost_id"
-        synonyms: ["ghost identifier", "entity id", "spirit id"]
-        description: "Unique identifier for each ghost"
+        synonyms: ["ghost identifier", "entity id", "spirit id", "ghost ID"]
+        description: "Unique identifier for each ghost entity"
         data_type: "TEXT"
       - name: "ghost_name"
-        synonyms: ["entity name", "spirit name", "ghost designation"]
+        synonyms: ["entity name", "spirit name", "ghost designation", "paranormal entity name"]
         description: "Name or designation of the ghost"
         data_type: "TEXT"
       - name: "ghost_type"
-        synonyms: ["entity type", "spirit classification", "paranormal type"]
-        description: "Classification of ghost type (Apparition, Poltergeist, Shadow, Orb, etc.)"
+        synonyms: ["entity type", "spirit classification", "paranormal type", "ghost classification"]
+        description: "Classification of ghost type (Apparition, Poltergeist, Shadow_Figure, Orb, Residual_Haunt, Intelligent_Haunt, Demonic, Elemental)"
+        data_type: "TEXT"
+        sample_values: ["Apparition", "Poltergeist", "Shadow_Figure", "Orb", "Residual_Haunt"]
+      - name: "description"
+        synonyms: ["ghost description", "entity details", "notes", "background"]
+        description: "Detailed description of the ghost entity"
         data_type: "TEXT"
       - name: "threat_level"
-        synonyms: ["danger level", "risk level", "hazard rating"]
+        synonyms: ["danger level", "risk level", "hazard rating", "threat assessment"]
         description: "Threat assessment: Low, Medium, High, or Extreme"
         data_type: "TEXT"
+        sample_values: ["Low", "Medium", "High", "Extreme"]
       - name: "status"
-        synonyms: ["ghost status", "entity state", "activity status"]
+        synonyms: ["ghost status", "entity state", "activity status", "current status"]
         description: "Current status: Active, Dormant, Captured, or Neutralized"
         data_type: "TEXT"
+        sample_values: ["Active", "Dormant", "Captured", "Neutralized"]
+      - name: "first_sighting"
+        synonyms: ["initial detection", "first appearance", "discovery date"]
+        description: "Date and time of first recorded sighting"
+        data_type: "TIMESTAMP"
+      - name: "last_sighting"
+        synonyms: ["most recent sighting", "latest appearance", "last seen"]
+        description: "Date and time of most recent sighting"
+        data_type: "TIMESTAMP"
+      - name: "manifestation_pattern"
+        synonyms: ["appearance pattern", "activity pattern", "behavior pattern"]
+        description: "Pattern of ghost manifestations (Nocturnal, Diurnal, Random, Cyclical)"
+        data_type: "TEXT"
+        sample_values: ["Nocturnal", "Diurnal", "Random", "Cyclical"]
     measures:
       - name: "confidence_score"
-        synonyms: ["detection confidence", "certainty score", "reliability score"]
+        synonyms: ["detection confidence", "certainty score", "reliability score", "AI confidence"]
         description: "AI confidence in ghost detection (0-1 scale)"
         data_type: "FLOAT"
         aggregation: "AVG"
 
+  # ====================
+  # GHOST_SIGHTINGS TABLE
+  # ====================
   - name: "GHOST_DETECTION.APP.GHOST_SIGHTINGS"
-    description: "Individual ghost sighting events and encounters"
+    description: "Individual ghost sighting events and encounters with detailed measurements"
     base_table:
       database: "GHOST_DETECTION"
       schema: "APP"
       table: "GHOST_SIGHTINGS"
     dimensions:
       - name: "sighting_id"
-        synonyms: ["encounter id", "event id", "observation id"]
-        description: "Unique identifier for each sighting"
+        synonyms: ["encounter id", "event id", "observation id", "sighting identifier"]
+        description: "Unique identifier for each sighting event"
+        data_type: "TEXT"
+      - name: "ghost_id"
+        synonyms: ["ghost identifier", "entity id"]
+        description: "Foreign key to GHOSTS table"
         data_type: "TEXT"
       - name: "location_name"
-        synonyms: ["place", "venue", "site", "haunted location"]
+        synonyms: ["place", "venue", "site", "haunted location", "sighting location"]
         description: "Name of the location where sighting occurred"
         data_type: "TEXT"
-      - name: "sighting_datetime"
-        synonyms: ["event time", "occurrence date", "encounter time"]
-        description: "Date and time of the sighting"
-        data_type: "TIMESTAMP"
-      - name: "evidence_type"
-        synonyms: ["proof type", "documentation type"]
-        description: "Type of evidence: Visual, Audio, EMF, Temperature, Multiple"
+      - name: "location_address"
+        synonyms: ["address", "street address", "physical address"]
+        description: "Physical address of sighting location"
         data_type: "TEXT"
+      - name: "sighting_datetime"
+        synonyms: ["event time", "occurrence date", "encounter time", "sighting time"]
+        description: "Date and time when the sighting occurred"
+        data_type: "TIMESTAMP"
+      - name: "description"
+        synonyms: ["sighting description", "encounter details", "observation notes"]
+        description: "Detailed description of the sighting event"
+        data_type: "TEXT"
+      - name: "witness_name"
+        synonyms: ["observer name", "reporter name", "witness"]
+        description: "Name of the person who witnessed the event"
+        data_type: "TEXT"
+      - name: "witness_contact"
+        synonyms: ["contact information", "witness contact", "reporter contact"]
+        description: "Contact information for the witness"
+        data_type: "TEXT"
+      - name: "environmental_conditions"
+        synonyms: ["weather conditions", "environmental factors", "conditions"]
+        description: "Environmental conditions during sighting"
+        data_type: "TEXT"
+      - name: "verified"
+        synonyms: ["confirmed", "validated", "verified status", "authentication status"]
+        description: "Whether the sighting has been verified by investigators"
+        data_type: "BOOLEAN"
     measures:
       - name: "paranormal_activity_level"
-        synonyms: ["activity intensity", "manifestation strength", "ghost power level"]
+        synonyms: ["activity intensity", "manifestation strength", "ghost power level", "activity level"]
         description: "Paranormal activity intensity on 1-10 scale"
         data_type: "NUMBER"
         aggregation: "AVG"
       - name: "temperature_celsius"
-        synonyms: ["temperature", "cold spot temperature", "ambient temp"]
+        synonyms: ["temperature", "cold spot temperature", "ambient temp", "temperature reading"]
         description: "Temperature reading at sighting location in Celsius"
         data_type: "FLOAT"
         aggregation: "AVG"
+      - name: "emf_reading"
+        synonyms: ["electromagnetic reading", "EMF level", "field strength", "electromagnetic field"]
+        description: "Electromagnetic field reading in milligauss (mG)"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "latitude"
+        synonyms: ["lat", "geographic latitude"]
+        description: "Latitude coordinate of sighting location"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "longitude"
+        synonyms: ["lon", "long", "geographic longitude"]
+        description: "Longitude coordinate of sighting location"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "sighting_count"
+        synonyms: ["number of sightings", "encounter count", "observation count", "total sightings"]
+        description: "Total number of sightings"
+        data_type: "NUMBER"
+        aggregation: "COUNT"
+
+  # ====================
+  # GHOST_EVIDENCE TABLE
+  # ====================
+  - name: "GHOST_DETECTION.APP.GHOST_EVIDENCE"
+    description: "Physical and digital evidence collected during paranormal investigations"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "GHOST_EVIDENCE"
+    dimensions:
+      - name: "evidence_id"
+        synonyms: ["evidence identifier", "proof id", "documentation id"]
+        description: "Unique identifier for evidence item"
+        data_type: "TEXT"
+      - name: "ghost_id"
+        synonyms: ["ghost identifier", "entity id"]
+        description: "Foreign key to GHOSTS table"
+        data_type: "TEXT"
+      - name: "evidence_type"
+        synonyms: ["proof type", "documentation type", "evidence category"]
+        description: "Type of evidence: Photograph, Audio, Video, EMF_Recording, Thermal_Image, Physical"
+        data_type: "TEXT"
+        sample_values: ["Photograph", "Audio", "Video", "EMF_Recording", "Thermal_Image"]
+      - name: "file_path"
+        synonyms: ["file location", "storage path", "evidence location"]
+        description: "Storage path for the evidence file"
+        data_type: "TEXT"
+      - name: "description"
+        synonyms: ["evidence description", "notes", "details"]
+        description: "Detailed description of the evidence"
+        data_type: "TEXT"
+      - name: "captured_datetime"
+        synonyms: ["capture time", "collection time", "evidence timestamp"]
+        description: "When the evidence was captured or collected"
+        data_type: "TIMESTAMP"
+      - name: "metadata"
+        synonyms: ["additional data", "technical details", "file metadata"]
+        description: "Technical metadata about the evidence (camera settings, etc.)"
+        data_type: "VARIANT"
+    measures:
+      - name: "file_size_bytes"
+        synonyms: ["file size", "storage size", "data size"]
+        description: "Size of evidence file in bytes"
+        data_type: "NUMBER"
+        aggregation: "SUM"
+      - name: "evidence_count"
+        synonyms: ["number of evidence", "proof items", "documentation count"]
+        description: "Count of evidence items"
+        data_type: "NUMBER"
+        aggregation: "COUNT"
+
+  # ====================
+  # SENSOR_READINGS TABLE
+  # ====================
+  - name: "GHOST_DETECTION.APP.SENSOR_READINGS"
+    description: "Detailed sensor measurements from paranormal detection equipment"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "SENSOR_READINGS"
+    dimensions:
+      - name: "reading_id"
+        synonyms: ["measurement id", "sensor reading id", "reading identifier"]
+        description: "Unique identifier for each sensor reading"
+        data_type: "TEXT"
+      - name: "evidence_id"
+        synonyms: ["evidence identifier", "linked evidence"]
+        description: "Foreign key to GHOST_EVIDENCE table"
+        data_type: "TEXT"
+      - name: "reading_datetime"
+        synonyms: ["measurement time", "reading timestamp", "sensor time"]
+        description: "When the sensor reading was taken"
+        data_type: "TIMESTAMP"
+      - name: "anomaly_detected"
+        synonyms: ["anomaly flag", "unusual reading", "abnormal detection"]
+        description: "Whether an anomaly was detected in this reading"
+        data_type: "BOOLEAN"
+    measures:
       - name: "emf_reading"
         synonyms: ["electromagnetic reading", "EMF level", "field strength"]
         description: "Electromagnetic field reading in milligauss"
         data_type: "FLOAT"
         aggregation: "AVG"
-      - name: "sighting_count"
-        synonyms: ["number of sightings", "encounter count", "observation count"]
-        description: "Total number of sightings"
+      - name: "temperature_celsius"
+        synonyms: ["temperature", "temp reading", "thermal measurement"]
+        description: "Temperature measurement in Celsius"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "humidity_percent"
+        synonyms: ["humidity", "moisture level", "relative humidity"]
+        description: "Relative humidity percentage"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "sound_level_db"
+        synonyms: ["sound level", "noise level", "decibel reading", "audio level"]
+        description: "Sound level in decibels"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "vibration_hz"
+        synonyms: ["vibration", "frequency", "oscillation"]
+        description: "Vibration frequency in Hertz"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "reading_count"
+        synonyms: ["number of readings", "measurement count"]
+        description: "Count of sensor readings"
         data_type: "NUMBER"
         aggregation: "COUNT"
 
+  # ====================
+  # INVESTIGATORS TABLE
+  # ====================
+  - name: "GHOST_DETECTION.APP.INVESTIGATORS"
+    description: "SnowGhost Breakers team members and paranormal investigators"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "INVESTIGATORS"
+    dimensions:
+      - name: "investigator_id"
+        synonyms: ["investigator identifier", "team member id", "staff id"]
+        description: "Unique identifier for each investigator"
+        data_type: "TEXT"
+      - name: "name"
+        synonyms: ["investigator name", "team member name", "staff name"]
+        description: "Full name of the investigator"
+        data_type: "TEXT"
+      - name: "specialization"
+        synonyms: ["expertise", "specialty", "area of focus"]
+        description: "Investigator's area of specialization"
+        data_type: "TEXT"
+      - name: "certification_level"
+        synonyms: ["qualification level", "cert level", "expertise level"]
+        description: "Certification level: Novice, Advanced, Expert, Master"
+        data_type: "TEXT"
+        sample_values: ["Novice", "Advanced", "Expert", "Master"]
+      - name: "status"
+        synonyms: ["investigator status", "employment status", "active status"]
+        description: "Current employment status: Active, On_Leave, Retired"
+        data_type: "TEXT"
+        sample_values: ["Active", "On_Leave", "Retired"]
+      - name: "contact_info"
+        synonyms: ["contact information", "phone", "email"]
+        description: "Contact information for the investigator"
+        data_type: "TEXT"
+    measures:
+      - name: "experience_years"
+        synonyms: ["years of experience", "seniority", "tenure"]
+        description: "Years of experience in paranormal investigation"
+        data_type: "NUMBER"
+        aggregation: "AVG"
+      - name: "investigator_count"
+        synonyms: ["number of investigators", "team size", "staff count"]
+        description: "Count of investigators"
+        data_type: "NUMBER"
+        aggregation: "COUNT"
+
+  # ====================
+  # INVESTIGATIONS TABLE
+  # ====================
   - name: "GHOST_DETECTION.APP.INVESTIGATIONS"
-    description: "Ghost investigation cases and their management"
+    description: "Active and historical ghost investigation cases"
     base_table:
       database: "GHOST_DETECTION"
       schema: "APP"
       table: "INVESTIGATIONS"
     dimensions:
       - name: "investigation_id"
-        synonyms: ["case id", "case number"]
+        synonyms: ["case id", "case number", "investigation identifier"]
         description: "Unique identifier for investigation case"
         data_type: "TEXT"
       - name: "case_name"
-        synonyms: ["investigation name", "case title"]
-        description: "Name of the investigation case"
+        synonyms: ["investigation name", "case title", "case designation"]
+        description: "Name or title of the investigation case"
+        data_type: "TEXT"
+      - name: "ghost_id"
+        synonyms: ["ghost identifier", "entity id", "subject ghost"]
+        description: "Foreign key to GHOSTS table - ghost being investigated"
+        data_type: "TEXT"
+      - name: "lead_investigator_id"
+        synonyms: ["lead investigator", "case lead", "primary investigator"]
+        description: "Foreign key to INVESTIGATORS table - lead investigator"
         data_type: "TEXT"
       - name: "status"
-        synonyms: ["case status", "investigation state"]
+        synonyms: ["case status", "investigation state", "case state"]
         description: "Investigation status: Open, In_Progress, Closed, Archived"
         data_type: "TEXT"
+        sample_values: ["Open", "In_Progress", "Closed", "Archived"]
       - name: "priority"
-        synonyms: ["case priority", "urgency level"]
+        synonyms: ["case priority", "urgency level", "importance"]
         description: "Priority level: Low, Medium, High, Critical"
+        data_type: "TEXT"
+        sample_values: ["Low", "Medium", "High", "Critical"]
+      - name: "start_date"
+        synonyms: ["case start", "investigation start", "opened date"]
+        description: "When the investigation was opened"
+        data_type: "TIMESTAMP"
+      - name: "end_date"
+        synonyms: ["case close", "investigation end", "closed date", "completion date"]
+        description: "When the investigation was closed or completed"
+        data_type: "TIMESTAMP"
+      - name: "notes"
+        synonyms: ["case notes", "investigation notes", "details"]
+        description: "Detailed notes and findings from the investigation"
         data_type: "TEXT"
     measures:
       - name: "evidence_count"
         synonyms: ["number of evidence", "proof items", "documentation count"]
-        description: "Number of evidence items collected"
+        description: "Number of evidence items collected in this case"
         data_type: "NUMBER"
         aggregation: "SUM"
+      - name: "investigation_count"
+        synonyms: ["number of cases", "case count", "investigation count"]
+        description: "Count of investigation cases"
+        data_type: "NUMBER"
+        aggregation: "COUNT"
 
+  # ====================
+  # GHOST_AI_ANALYSIS TABLE
+  # ====================
+  - name: "GHOST_DETECTION.APP.GHOST_AI_ANALYSIS"
+    description: "AI-powered analysis results for ghost evidence and patterns"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "GHOST_AI_ANALYSIS"
+    dimensions:
+      - name: "analysis_id"
+        synonyms: ["analysis identifier", "AI analysis id"]
+        description: "Unique identifier for each AI analysis"
+        data_type: "TEXT"
+      - name: "evidence_id"
+        synonyms: ["evidence identifier", "analyzed evidence"]
+        description: "Foreign key to GHOST_EVIDENCE table"
+        data_type: "TEXT"
+      - name: "analysis_type"
+        synonyms: ["analysis category", "AI analysis type"]
+        description: "Type of AI analysis performed"
+        data_type: "TEXT"
+      - name: "model_used"
+        synonyms: ["AI model", "analysis model", "Cortex model"]
+        description: "AI model used for analysis (e.g., mistral-large2, llama3-70b)"
+        data_type: "TEXT"
+      - name: "analysis_datetime"
+        synonyms: ["analysis time", "processing time", "analysis timestamp"]
+        description: "When the AI analysis was performed"
+        data_type: "TIMESTAMP"
+      - name: "results"
+        synonyms: ["analysis results", "findings", "AI output"]
+        description: "Detailed results from the AI analysis"
+        data_type: "VARIANT"
+      - name: "anomaly_detected"
+        synonyms: ["anomaly flag", "unusual finding", "abnormality detected"]
+        description: "Whether anomalies were detected"
+        data_type: "BOOLEAN"
+    measures:
+      - name: "confidence_score"
+        synonyms: ["AI confidence", "certainty score", "analysis confidence"]
+        description: "Confidence score of the AI analysis (0-1)"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "processing_time_seconds"
+        synonyms: ["processing duration", "analysis time", "compute time"]
+        description: "Time taken to process the analysis in seconds"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "analysis_count"
+        synonyms: ["number of analyses", "AI analysis count"]
+        description: "Count of AI analyses performed"
+        data_type: "NUMBER"
+        aggregation: "COUNT"
+
+  # ====================
+  # AUDIT_LOG TABLE
+  # ====================
+  - name: "GHOST_DETECTION.APP.AUDIT_LOG"
+    description: "System audit trail for tracking all database activities"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "AUDIT_LOG"
+    dimensions:
+      - name: "log_id"
+        synonyms: ["audit id", "log identifier", "audit entry id"]
+        description: "Unique identifier for each audit log entry"
+        data_type: "TEXT"
+      - name: "table_name"
+        synonyms: ["affected table", "database table", "target table"]
+        description: "Name of the table that was modified"
+        data_type: "TEXT"
+      - name: "action_type"
+        synonyms: ["operation", "action", "modification type"]
+        description: "Type of action performed: INSERT, UPDATE, DELETE"
+        data_type: "TEXT"
+        sample_values: ["INSERT", "UPDATE", "DELETE"]
+      - name: "performed_by"
+        synonyms: ["user", "modified by", "action user"]
+        description: "User or process that performed the action"
+        data_type: "TEXT"
+      - name: "action_datetime"
+        synonyms: ["modification time", "action timestamp", "change time"]
+        description: "When the action was performed"
+        data_type: "TIMESTAMP"
+      - name: "old_values"
+        synonyms: ["previous values", "before state", "original data"]
+        description: "Values before the change"
+        data_type: "VARIANT"
+      - name: "new_values"
+        synonyms: ["updated values", "after state", "new data"]
+        description: "Values after the change"
+        data_type: "VARIANT"
+    measures:
+      - name: "audit_count"
+        synonyms: ["number of changes", "modification count", "audit entries"]
+        description: "Count of audit log entries"
+        data_type: "NUMBER"
+        aggregation: "COUNT"
+
+  # ====================
+  # VW_GHOST_ACTIVITY_SUMMARY VIEW
+  # ====================
   - name: "GHOST_DETECTION.ANALYTICS.VW_GHOST_ACTIVITY_SUMMARY"
-    description: "Comprehensive summary of ghost activity metrics"
+    description: "Comprehensive summary of ghost activity metrics and patterns"
     base_table:
       database: "GHOST_DETECTION"
       schema: "ANALYTICS"
       table: "VW_GHOST_ACTIVITY_SUMMARY"
     dimensions:
+      - name: "ghost_id"
+        synonyms: ["ghost identifier", "entity id"]
+        description: "Unique identifier for the ghost"
+        data_type: "TEXT"
       - name: "ghost_name"
         synonyms: ["entity name", "spirit name"]
         description: "Name of the ghost"
         data_type: "TEXT"
       - name: "ghost_type"
-        synonyms: ["entity type", "classification"]
+        synonyms: ["entity type", "classification", "ghost classification"]
         description: "Type classification of the ghost"
         data_type: "TEXT"
       - name: "threat_level"
-        synonyms: ["danger level", "risk assessment"]
+        synonyms: ["danger level", "risk assessment", "threat rating"]
         description: "Assessed threat level"
         data_type: "TEXT"
+      - name: "status"
+        synonyms: ["ghost status", "current state"]
+        description: "Current status of the ghost"
+        data_type: "TEXT"
+      - name: "first_seen"
+        synonyms: ["first sighting", "initial detection"]
+        description: "Date of first sighting"
+        data_type: "TIMESTAMP"
+      - name: "last_seen"
+        synonyms: ["last sighting", "most recent appearance"]
+        description: "Date of last sighting"
+        data_type: "TIMESTAMP"
     measures:
       - name: "total_sightings"
-        synonyms: ["sighting count", "number of encounters"]
+        synonyms: ["sighting count", "number of encounters", "appearances"]
         description: "Total number of sightings for this ghost"
         data_type: "NUMBER"
         aggregation: "SUM"
       - name: "avg_paranormal_level"
-        synonyms: ["average activity", "mean intensity"]
+        synonyms: ["average activity", "mean intensity", "average power"]
         description: "Average paranormal activity level"
         data_type: "FLOAT"
         aggregation: "AVG"
+      - name: "max_paranormal_level"
+        synonyms: ["peak activity", "highest intensity", "maximum power"]
+        description: "Maximum recorded paranormal activity level"
+        data_type: "NUMBER"
+        aggregation: "MAX"
       - name: "activity_duration_days"
-        synonyms: ["days active", "duration", "timespan"]
+        synonyms: ["days active", "duration", "timespan", "active period"]
         description: "Number of days between first and last sighting"
         data_type: "NUMBER"
         aggregation: "AVG"
+      - name: "unique_locations"
+        synonyms: ["location count", "different places", "sites visited"]
+        description: "Number of unique locations where ghost was sighted"
+        data_type: "NUMBER"
+        aggregation: "SUM"
+      - name: "evidence_count"
+        synonyms: ["evidence pieces", "documentation count", "proof items"]
+        description: "Total evidence collected for this ghost"
+        data_type: "NUMBER"
+        aggregation: "SUM"
 
+  # ====================
+  # VW_PARANORMAL_HOTSPOTS VIEW
+  # ====================
   - name: "GHOST_DETECTION.ANALYTICS.VW_PARANORMAL_HOTSPOTS"
-    description: "Geographic analysis of paranormal activity concentration"
+    description: "Geographic analysis of paranormal activity concentration and intensity"
     base_table:
       database: "GHOST_DETECTION"
       schema: "ANALYTICS"
       table: "VW_PARANORMAL_HOTSPOTS"
     dimensions:
       - name: "location_name"
-        synonyms: ["haunted location", "hotspot", "paranormal site"]
+        synonyms: ["haunted location", "hotspot", "paranormal site", "site name"]
         description: "Name of the location"
         data_type: "TEXT"
       - name: "hotspot_classification"
-        synonyms: ["hotspot type", "activity classification"]
+        synonyms: ["hotspot type", "activity classification", "site classification"]
         description: "Classification: Critical Hotspot, Active Hotspot, Moderate Activity, Low Activity"
         data_type: "TEXT"
+        sample_values: ["Critical Hotspot", "Active Hotspot", "Moderate Activity", "Low Activity"]
     measures:
       - name: "total_sightings"
-        synonyms: ["sighting count at location", "encounters at site"]
+        synonyms: ["sighting count at location", "encounters at site", "location sightings"]
         description: "Total number of sightings at this location"
         data_type: "NUMBER"
         aggregation: "SUM"
       - name: "unique_ghosts"
-        synonyms: ["different ghosts", "ghost variety", "entity count"]
+        synonyms: ["different ghosts", "ghost variety", "entity count", "distinct entities"]
         description: "Number of unique ghosts seen at location"
         data_type: "NUMBER"
         aggregation: "SUM"
       - name: "avg_activity_level"
-        synonyms: ["average activity", "mean paranormal level"]
+        synonyms: ["average activity", "mean paranormal level", "typical intensity"]
         description: "Average paranormal activity level at location"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "latitude"
+        synonyms: ["lat", "geographic latitude", "location latitude"]
+        description: "Latitude coordinate of hotspot"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "longitude"
+        synonyms: ["lon", "long", "geographic longitude", "location longitude"]
+        description: "Longitude coordinate of hotspot"
         data_type: "FLOAT"
         aggregation: "AVG"
 
@@ -192,27 +588,125 @@ relationships:
     right_column: "ghost_id"
     relationship_type: "one_to_many"
     
+  - name: "ghost_to_evidence"
+    left_table: "GHOST_DETECTION.APP.GHOSTS"
+    left_column: "ghost_id"
+    right_table: "GHOST_DETECTION.APP.GHOST_EVIDENCE"
+    right_column: "ghost_id"
+    relationship_type: "one_to_many"
+    
   - name: "ghost_to_investigations"
     left_table: "GHOST_DETECTION.APP.GHOSTS"
     left_column: "ghost_id"
     right_table: "GHOST_DETECTION.APP.INVESTIGATIONS"
     right_column: "ghost_id"
     relationship_type: "one_to_many"
+    
+  - name: "evidence_to_sensor_readings"
+    left_table: "GHOST_DETECTION.APP.GHOST_EVIDENCE"
+    left_column: "evidence_id"
+    right_table: "GHOST_DETECTION.APP.SENSOR_READINGS"
+    right_column: "evidence_id"
+    relationship_type: "one_to_many"
+    
+  - name: "evidence_to_ai_analysis"
+    left_table: "GHOST_DETECTION.APP.GHOST_EVIDENCE"
+    left_column: "evidence_id"
+    right_table: "GHOST_DETECTION.APP.GHOST_AI_ANALYSIS"
+    right_column: "evidence_id"
+    relationship_type: "one_to_many"
+    
+  - name: "investigator_to_investigations"
+    left_table: "GHOST_DETECTION.APP.INVESTIGATORS"
+    left_column: "investigator_id"
+    right_table: "GHOST_DETECTION.APP.INVESTIGATIONS"
+    right_column: "lead_investigator_id"
+    relationship_type: "one_to_many"
 
 sample_questions:
+  # Basic Queries
   - "What are the most active ghosts in the past month?"
   - "Which locations have the highest paranormal activity?"
   - "Show me all extreme threat level ghosts"
-  - "What is the average EMF reading across all sightings?"
   - "How many investigations are currently open?"
   - "Which ghost types are most common?"
-  - "What are the paranormal hotspots with more than 5 sightings?"
-  - "Show the trend of ghost sightings over time"
-  - "Which investigators have the most cases?"
   - "What is the distribution of threat levels?"
-  - "Find ghosts with confidence score above 0.9"
-  - "Show locations with temperature drops below 15 degrees"
-  - "What percentage of sightings are verified?"
-  - "Which ghost has the highest average paranormal activity level?"
+  
+  # Measurement Queries
+  - "What is the average EMF reading across all sightings?"
+  - "Show locations with temperature drops below 15 degrees Celsius"
+  - "What are the highest paranormal activity levels recorded?"
+  - "Which ghosts have EMF readings above 5 milligauss?"
+  
+  # Geographic Queries
+  - "What are the paranormal hotspots with more than 5 sightings?"
+  - "Show me a map of all critical hotspots"
+  - "Which locations have the most unique ghosts?"
+  - "Where are all the high threat ghosts located?"
+  
+  # Temporal Queries
+  - "Show the trend of ghost sightings over time"
+  - "What is the activity pattern for nocturnal ghosts?"
+  - "Which ghosts have been seen in the last 7 days?"
+  - "How many sightings occurred last month compared to this month?"
+  
+  # Investigation Queries
   - "Show me critical priority investigations"
+  - "Which investigators have the most cases?"
+  - "How many cases did we close this month?"
+  - "What is the average investigation duration?"
+  
+  # Evidence Queries
+  - "How much evidence has been collected per ghost?"
+  - "Which evidence types are most common?"
+  - "Show me all video evidence from the past week"
+  - "What is the total size of evidence files collected?"
+  
+  # AI Analysis Queries
+  - "Which AI analyses had the highest confidence scores?"
+  - "How many anomalies were detected by AI?"
+  - "What is the average processing time for AI analysis?"
+  - "Show me AI findings with confidence above 0.9"
+  
+  # Complex Queries
+  - "Which ghosts have the highest activity but lowest evidence count?"
+  - "What percentage of sightings are verified?"
+  - "Show correlation between EMF readings and threat levels"
+  - "Which ghost has the highest average paranormal activity level?"
+  - "Find ghosts with increasing activity trends"
+  - "Compare activity levels between different ghost types"
+  - "Which locations have both high activity and multiple ghost types?"
+  - "Show me unverified sightings with high paranormal activity"
+  
+  # Team Performance
+  - "Which investigators are most experienced?"
+  - "How many active cases does each investigator have?"
+  - "Show investigation success rate by investigator"
+  - "Which team members specialize in high-threat cases?"
+  
+  # Prediction & Analytics
+  - "Which ghosts are likely to escalate in threat level?"
+  - "Show declining activity patterns"
+  - "Predict future hotspot locations based on trends"
+  - "Which ghosts need immediate attention?"
 
+verified_queries:
+  - name: "Active High Threat Ghosts"
+    question: "Show me all active ghosts with high or extreme threat levels"
+    sql: "SELECT ghost_name, ghost_type, threat_level, total_sightings FROM GHOST_DETECTION.ANALYTICS.VW_GHOST_ACTIVITY_SUMMARY WHERE status = 'Active' AND threat_level IN ('High', 'Extreme') ORDER BY total_sightings DESC"
+    
+  - name: "Recent Paranormal Activity"
+    question: "What were the most recent ghost sightings?"
+    sql: "SELECT ghost_name, location_name, sighting_datetime, paranormal_activity_level FROM GHOST_DETECTION.APP.GHOST_SIGHTINGS JOIN GHOST_DETECTION.APP.GHOSTS USING (ghost_id) ORDER BY sighting_datetime DESC LIMIT 10"
+    
+  - name: "Critical Hotspots"
+    question: "Which locations are critical paranormal hotspots?"
+    sql: "SELECT location_name, total_sightings, unique_ghosts, avg_activity_level FROM GHOST_DETECTION.ANALYTICS.VW_PARANORMAL_HOTSPOTS WHERE hotspot_classification = 'Critical Hotspot' ORDER BY total_sightings DESC"
+    
+  - name: "Evidence Summary"
+    question: "How much evidence do we have per ghost?"
+    sql: "SELECT ghost_name, evidence_count, ghost_type, threat_level FROM GHOST_DETECTION.ANALYTICS.VW_GHOST_ACTIVITY_SUMMARY WHERE evidence_count > 0 ORDER BY evidence_count DESC"
+    
+  - name: "Open High Priority Cases"
+    question: "Show all open high priority investigations"
+    sql: "SELECT investigation_id, case_name, priority, start_date, evidence_count FROM GHOST_DETECTION.APP.INVESTIGATIONS WHERE status IN ('Open', 'In_Progress') AND priority IN ('High', 'Critical') ORDER BY start_date DESC"

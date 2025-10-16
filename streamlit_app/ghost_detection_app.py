@@ -500,12 +500,11 @@ elif page == "🤖 AI Insights":
             AVG(gs.paranormal_activity_level) as avg_activity,
             MAX(gs.sighting_datetime) as last_sighting,
             COUNT(DISTINCT ge.evidence_id) as evidence_count,
-            AVG(sr.emf_reading) as avg_emf,
-            AVG(sr.temperature_celsius) as avg_temp
+            AVG(gs.emf_reading) as avg_emf,
+            AVG(gs.temperature_celsius) as avg_temp
         FROM GHOST_DETECTION.APP.GHOSTS g
-        LEFT JOIN GHOST_DETECTION.APP.GHOST_SIGHTINGS gs ON g.ghost_id = gs.ghost_id
+        INNER JOIN GHOST_DETECTION.APP.GHOST_SIGHTINGS gs ON g.ghost_id = gs.ghost_id
         LEFT JOIN GHOST_DETECTION.APP.GHOST_EVIDENCE ge ON g.ghost_id = ge.ghost_id
-        LEFT JOIN GHOST_DETECTION.APP.SENSOR_READINGS sr ON ge.evidence_id = sr.evidence_id
         WHERE g.status = 'Active'
         AND gs.sighting_datetime >= DATEADD(day, -30, CURRENT_TIMESTAMP())
         GROUP BY g.ghost_id, g.ghost_name, g.ghost_type, g.threat_level
