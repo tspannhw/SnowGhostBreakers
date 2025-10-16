@@ -1,0 +1,223 @@
+# ============================================
+# SECURITY: Never commit sensitive data!
+# ============================================
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.env
+.envrc
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.test
+
+# Snowflake credentials and config
+credentials.json
+config.json
+secrets.yaml
+secrets.yml
+snowflake.json
+snowflake_credentials.json
+connection_params.json
+*_credentials.json
+*_secrets.*
+
+# SSH keys and certificates
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_dsa*
+*.pub
+
+# API keys and tokens
+*api_key*
+*apikey*
+*token*
+*secret*
+.secrets/
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+VENV/
+env.bak/
+venv.bak/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+
+# PyInstaller
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================
+# Jupyter Notebook
+# ============================================
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+.jupyter/
+*.ipynb.bak
+
+# ============================================
+# IDE and Editor
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+.pydevproject
+
+# ============================================
+# Snowflake
+# ============================================
+*.log
+*.sql.log
+snowsql_rt.log
+snowsql_rt.log.*
+.snowsql/
+
+# Snowflake connection history
+.snowsql_history
+
+# ============================================
+# Generated files (safe to regenerate)
+# ============================================
+*.html
+!docs/**/*.html
+*.txt
+!requirements.txt
+!LICENSE.txt
+*.pdf
+ghost_analysis_report.txt
+ghost_distribution.html
+activity_timeline.html
+hotspots_map.html
+threat_assessment.html
+ghost_network_interactive.html
+ghost_communities.html
+ghost_importance_ranking.html
+paranormal_hotspots.html
+ghost_graph_export.json
+
+# ============================================
+# Test files
+# ============================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+nosetests.xml
+test_results/
+test-results/
+
+# ============================================
+# Documentation builds
+# ============================================
+docs/_build/
+docs/.doctrees/
+site/
+_build/
+.doctrees/
+
+# ============================================
+# Database dumps and backups
+# ============================================
+*.sql.bak
+*.dump
+*.backup
+backup/
+backups/
+
+# ============================================
+# OS
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================
+# Temporary files
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.cache
+.cache/
+tmp/
+temp/
+
+# ============================================
+# Package managers
+# ============================================
+node_modules/
+package-lock.json
+yarn.lock
+.pnp/
+.pnp.js
+
+# ============================================
+# Misc
+# ============================================
+*.orig
+.direnv/
+.envrc
+

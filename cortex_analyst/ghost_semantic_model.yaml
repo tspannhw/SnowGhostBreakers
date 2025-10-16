@@ -1,0 +1,218 @@
+# ============================================
+# Cortex Analyst Semantic Model
+# Ghost Detection and Analysis System
+# ============================================
+
+name: "Ghost Detection Analytics"
+description: "Semantic model for analyzing ghost sightings, investigations, and paranormal activity patterns"
+
+tables:
+  - name: "GHOST_DETECTION.APP.GHOSTS"
+    description: "Master registry of detected ghosts and paranormal entities"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "GHOSTS"
+    dimensions:
+      - name: "ghost_id"
+        synonyms: ["ghost identifier", "entity id", "spirit id"]
+        description: "Unique identifier for each ghost"
+        data_type: "TEXT"
+      - name: "ghost_name"
+        synonyms: ["entity name", "spirit name", "ghost designation"]
+        description: "Name or designation of the ghost"
+        data_type: "TEXT"
+      - name: "ghost_type"
+        synonyms: ["entity type", "spirit classification", "paranormal type"]
+        description: "Classification of ghost type (Apparition, Poltergeist, Shadow, Orb, etc.)"
+        data_type: "TEXT"
+      - name: "threat_level"
+        synonyms: ["danger level", "risk level", "hazard rating"]
+        description: "Threat assessment: Low, Medium, High, or Extreme"
+        data_type: "TEXT"
+      - name: "status"
+        synonyms: ["ghost status", "entity state", "activity status"]
+        description: "Current status: Active, Dormant, Captured, or Neutralized"
+        data_type: "TEXT"
+    measures:
+      - name: "confidence_score"
+        synonyms: ["detection confidence", "certainty score", "reliability score"]
+        description: "AI confidence in ghost detection (0-1 scale)"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+
+  - name: "GHOST_DETECTION.APP.GHOST_SIGHTINGS"
+    description: "Individual ghost sighting events and encounters"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "GHOST_SIGHTINGS"
+    dimensions:
+      - name: "sighting_id"
+        synonyms: ["encounter id", "event id", "observation id"]
+        description: "Unique identifier for each sighting"
+        data_type: "TEXT"
+      - name: "location_name"
+        synonyms: ["place", "venue", "site", "haunted location"]
+        description: "Name of the location where sighting occurred"
+        data_type: "TEXT"
+      - name: "sighting_datetime"
+        synonyms: ["event time", "occurrence date", "encounter time"]
+        description: "Date and time of the sighting"
+        data_type: "TIMESTAMP"
+      - name: "evidence_type"
+        synonyms: ["proof type", "documentation type"]
+        description: "Type of evidence: Visual, Audio, EMF, Temperature, Multiple"
+        data_type: "TEXT"
+    measures:
+      - name: "paranormal_activity_level"
+        synonyms: ["activity intensity", "manifestation strength", "ghost power level"]
+        description: "Paranormal activity intensity on 1-10 scale"
+        data_type: "NUMBER"
+        aggregation: "AVG"
+      - name: "temperature_celsius"
+        synonyms: ["temperature", "cold spot temperature", "ambient temp"]
+        description: "Temperature reading at sighting location in Celsius"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "emf_reading"
+        synonyms: ["electromagnetic reading", "EMF level", "field strength"]
+        description: "Electromagnetic field reading in milligauss"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "sighting_count"
+        synonyms: ["number of sightings", "encounter count", "observation count"]
+        description: "Total number of sightings"
+        data_type: "NUMBER"
+        aggregation: "COUNT"
+
+  - name: "GHOST_DETECTION.APP.INVESTIGATIONS"
+    description: "Ghost investigation cases and their management"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "APP"
+      table: "INVESTIGATIONS"
+    dimensions:
+      - name: "investigation_id"
+        synonyms: ["case id", "case number"]
+        description: "Unique identifier for investigation case"
+        data_type: "TEXT"
+      - name: "case_name"
+        synonyms: ["investigation name", "case title"]
+        description: "Name of the investigation case"
+        data_type: "TEXT"
+      - name: "status"
+        synonyms: ["case status", "investigation state"]
+        description: "Investigation status: Open, In_Progress, Closed, Archived"
+        data_type: "TEXT"
+      - name: "priority"
+        synonyms: ["case priority", "urgency level"]
+        description: "Priority level: Low, Medium, High, Critical"
+        data_type: "TEXT"
+    measures:
+      - name: "evidence_count"
+        synonyms: ["number of evidence", "proof items", "documentation count"]
+        description: "Number of evidence items collected"
+        data_type: "NUMBER"
+        aggregation: "SUM"
+
+  - name: "GHOST_DETECTION.ANALYTICS.VW_GHOST_ACTIVITY_SUMMARY"
+    description: "Comprehensive summary of ghost activity metrics"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "ANALYTICS"
+      table: "VW_GHOST_ACTIVITY_SUMMARY"
+    dimensions:
+      - name: "ghost_name"
+        synonyms: ["entity name", "spirit name"]
+        description: "Name of the ghost"
+        data_type: "TEXT"
+      - name: "ghost_type"
+        synonyms: ["entity type", "classification"]
+        description: "Type classification of the ghost"
+        data_type: "TEXT"
+      - name: "threat_level"
+        synonyms: ["danger level", "risk assessment"]
+        description: "Assessed threat level"
+        data_type: "TEXT"
+    measures:
+      - name: "total_sightings"
+        synonyms: ["sighting count", "number of encounters"]
+        description: "Total number of sightings for this ghost"
+        data_type: "NUMBER"
+        aggregation: "SUM"
+      - name: "avg_paranormal_level"
+        synonyms: ["average activity", "mean intensity"]
+        description: "Average paranormal activity level"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+      - name: "activity_duration_days"
+        synonyms: ["days active", "duration", "timespan"]
+        description: "Number of days between first and last sighting"
+        data_type: "NUMBER"
+        aggregation: "AVG"
+
+  - name: "GHOST_DETECTION.ANALYTICS.VW_PARANORMAL_HOTSPOTS"
+    description: "Geographic analysis of paranormal activity concentration"
+    base_table:
+      database: "GHOST_DETECTION"
+      schema: "ANALYTICS"
+      table: "VW_PARANORMAL_HOTSPOTS"
+    dimensions:
+      - name: "location_name"
+        synonyms: ["haunted location", "hotspot", "paranormal site"]
+        description: "Name of the location"
+        data_type: "TEXT"
+      - name: "hotspot_classification"
+        synonyms: ["hotspot type", "activity classification"]
+        description: "Classification: Critical Hotspot, Active Hotspot, Moderate Activity, Low Activity"
+        data_type: "TEXT"
+    measures:
+      - name: "total_sightings"
+        synonyms: ["sighting count at location", "encounters at site"]
+        description: "Total number of sightings at this location"
+        data_type: "NUMBER"
+        aggregation: "SUM"
+      - name: "unique_ghosts"
+        synonyms: ["different ghosts", "ghost variety", "entity count"]
+        description: "Number of unique ghosts seen at location"
+        data_type: "NUMBER"
+        aggregation: "SUM"
+      - name: "avg_activity_level"
+        synonyms: ["average activity", "mean paranormal level"]
+        description: "Average paranormal activity level at location"
+        data_type: "FLOAT"
+        aggregation: "AVG"
+
+relationships:
+  - name: "ghost_to_sightings"
+    left_table: "GHOST_DETECTION.APP.GHOSTS"
+    left_column: "ghost_id"
+    right_table: "GHOST_DETECTION.APP.GHOST_SIGHTINGS"
+    right_column: "ghost_id"
+    relationship_type: "one_to_many"
+    
+  - name: "ghost_to_investigations"
+    left_table: "GHOST_DETECTION.APP.GHOSTS"
+    left_column: "ghost_id"
+    right_table: "GHOST_DETECTION.APP.INVESTIGATIONS"
+    right_column: "ghost_id"
+    relationship_type: "one_to_many"
+
+sample_questions:
+  - "What are the most active ghosts in the past month?"
+  - "Which locations have the highest paranormal activity?"
+  - "Show me all extreme threat level ghosts"
+  - "What is the average EMF reading across all sightings?"
+  - "How many investigations are currently open?"
+  - "Which ghost types are most common?"
+  - "What are the paranormal hotspots with more than 5 sightings?"
+  - "Show the trend of ghost sightings over time"
+  - "Which investigators have the most cases?"
+  - "What is the distribution of threat levels?"
+  - "Find ghosts with confidence score above 0.9"
+  - "Show locations with temperature drops below 15 degrees"
+  - "What percentage of sightings are verified?"
+  - "Which ghost has the highest average paranormal activity level?"
+  - "Show me critical priority investigations"
+

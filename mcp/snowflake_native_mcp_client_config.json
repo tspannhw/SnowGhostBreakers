@@ -1,0 +1,208 @@
+{
+  "mcp_server": {
+    "type": "snowflake-native",
+    "name": "ghost-detection-mcp",
+    "description": "Snowflake-managed MCP server for Ghost Detection System",
+    "protocol_version": "2025-06-18",
+    
+    "connection": {
+      "account": "<YOUR_SNOWFLAKE_ACCOUNT>",
+      "database": "GHOST_DETECTION",
+      "schema": "APP",
+      "server_name": "GHOST_DETECTION_MCP_SERVER",
+      "endpoint_url": "https://<YOUR_ACCOUNT>.snowflakecomputing.com/api/v2/databases/GHOST_DETECTION/schemas/APP/mcp-servers/GHOST_DETECTION_MCP_SERVER"
+    },
+    
+    "authentication": {
+      "type": "oauth2",
+      "integration_name": "GHOST_MCP_OAUTH",
+      "client_id": "<GET_FROM_SYSTEM$SHOW_OAUTH_CLIENT_SECRETS>",
+      "client_secret": "<GET_FROM_SYSTEM$SHOW_OAUTH_CLIENT_SECRETS>",
+      "authorization_url": "https://<YOUR_ACCOUNT>.snowflakecomputing.com/oauth/authorize",
+      "token_url": "https://<YOUR_ACCOUNT>.snowflakecomputing.com/oauth/token",
+      "redirect_uri": "http://localhost:3000/oauth/callback",
+      "scope": "session:role:GHOSTBUSTER"
+    },
+    
+    "tools": [
+      {
+        "name": "ghost-search",
+        "type": "CORTEX_SEARCH_SERVICE_QUERY",
+        "description": "Semantic search for ghost data by name, type, description, behavior, location, and threat level",
+        "use_cases": [
+          "Find ghosts by characteristics",
+          "Search by location or threat level",
+          "Discover similar ghost entities"
+        ],
+        "example_queries": [
+          {
+            "query": "shadow entity with electronic interference",
+            "limit": 10
+          },
+          {
+            "query": "poltergeist",
+            "columns": ["ghost_name", "threat_level", "behavioral_pattern"],
+            "filter": {"@eq": {"status": "Active"}}
+          }
+        ]
+      },
+      {
+        "name": "ghost-analytics",
+        "type": "CORTEX_ANALYST_MESSAGE",
+        "description": "Natural language interface for analytical queries about ghosts, sightings, and patterns",
+        "use_cases": [
+          "Statistical analysis of ghost activity",
+          "Trend analysis over time",
+          "Threat level assessments",
+          "Location hotspot identification"
+        ],
+        "example_queries": [
+          "What are the top 5 most active ghosts this month?",
+          "Show me sighting trends by location over the last 6 months",
+          "Which ghost types have the highest threat levels?",
+          "Calculate average EMF readings by ghost type"
+        ]
+      },
+      {
+        "name": "sighting-search",
+        "type": "CORTEX_SEARCH_SERVICE_QUERY",
+        "description": "Search ghost sighting events by location, date, witnesses, and activity levels",
+        "use_cases": [
+          "Find sightings by location",
+          "Search by environmental conditions",
+          "Filter by activity levels or EMF readings"
+        ],
+        "example_queries": [
+          {
+            "query": "hospital sightings with high EMF",
+            "filter": {"@gte": {"emf_reading": 5.0}}
+          },
+          {
+            "query": "recent sightings",
+            "columns": ["location_name", "sighting_datetime", "witness_count"]
+          }
+        ]
+      },
+      {
+        "name": "evidence-search",
+        "type": "CORTEX_SEARCH_SERVICE_QUERY",
+        "description": "Search evidence repository including images, audio, video, and sensor data",
+        "use_cases": [
+          "Find evidence by type",
+          "Search by processing status",
+          "Locate specific ghost evidence"
+        ],
+        "example_queries": [
+          {
+            "query": "thermal camera images",
+            "filter": {"@eq": {"evidence_type": "Image"}}
+          },
+          {
+            "query": "analyzed evidence from January",
+            "filter": {"@eq": {"processing_status": "Analyzed"}}
+          }
+        ]
+      }
+    ],
+    
+    "usage_examples": {
+      "initialize": {
+        "method": "POST",
+        "endpoint": "/api/v2/databases/GHOST_DETECTION/schemas/APP/mcp-servers/GHOST_DETECTION_MCP_SERVER",
+        "body": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "initialize",
+          "params": {}
+        }
+      },
+      "list_tools": {
+        "method": "POST",
+        "endpoint": "/api/v2/databases/GHOST_DETECTION/schemas/APP/mcp-servers/GHOST_DETECTION_MCP_SERVER",
+        "body": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "tools/list",
+          "params": {}
+        }
+      },
+      "call_search_tool": {
+        "method": "POST",
+        "endpoint": "/api/v2/databases/GHOST_DETECTION/schemas/APP/mcp-servers/GHOST_DETECTION_MCP_SERVER",
+        "body": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "tools/call",
+          "params": {
+            "name": "ghost-search",
+            "arguments": {
+              "query": "dangerous entities",
+              "limit": 5,
+              "columns": ["ghost_name", "threat_level"]
+            }
+          }
+        }
+      },
+      "call_analyst_tool": {
+        "method": "POST",
+        "endpoint": "/api/v2/databases/GHOST_DETECTION/schemas/APP/mcp-servers/GHOST_DETECTION_MCP_SERVER",
+        "body": {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "tools/call",
+          "params": {
+            "name": "ghost-analytics",
+            "arguments": {
+              "message": "Show me ghost activity trends by month"
+            }
+          }
+        }
+      }
+    },
+    
+    "configuration_notes": {
+      "setup_steps": [
+        "1. Execute sql/10_snowflake_native_mcp_server.sql in Snowflake",
+        "2. Run: SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('GHOST_MCP_OAUTH');",
+        "3. Copy client_id and client_secret to this config",
+        "4. Replace <YOUR_ACCOUNT> with your Snowflake account identifier",
+        "5. Configure your MCP client with these settings"
+      ],
+      "troubleshooting": {
+        "invalid_consent_request": "Change OAuth scope from 'session:role:all' to 'session:role:GHOSTBUSTER' in the authorization URL",
+        "tool_not_found": "Verify Cortex Search services exist: SHOW CORTEX SEARCH SERVICES;",
+        "insufficient_privileges": "Grant USAGE on MCP server and Cortex services to your role"
+      }
+    },
+    
+    "monitoring": {
+      "server_info_query": "SELECT * FROM VW_MCP_SERVER_INFO;",
+      "describe_server": "DESCRIBE MCP SERVER GHOST_DETECTION_MCP_SERVER;",
+      "show_servers": "SHOW MCP SERVERS IN SCHEMA APP;",
+      "audit_logs": "SELECT * FROM AUDIT_LOG WHERE table_name = 'MCP_SERVER' ORDER BY operation_datetime DESC;"
+    }
+  },
+  
+  "claude_desktop_config": {
+    "mcpServers": {
+      "ghost-detection": {
+        "type": "snowflake",
+        "account": "<YOUR_SNOWFLAKE_ACCOUNT>",
+        "database": "GHOST_DETECTION",
+        "schema": "APP",
+        "server": "GHOST_DETECTION_MCP_SERVER",
+        "oauth": {
+          "client_id": "<YOUR_CLIENT_ID>",
+          "client_secret": "<YOUR_CLIENT_SECRET>",
+          "redirect_uri": "http://localhost:3000/oauth/callback"
+        }
+      }
+    }
+  },
+  
+  "python_client_example": {
+    "description": "Example Python client using requests library",
+    "code": "import requests\nimport json\n\nclass SnowflakeMCPClient:\n    def __init__(self, endpoint_url, oauth_token):\n        self.endpoint_url = endpoint_url\n        self.headers = {\n            'Authorization': f'Bearer {oauth_token}',\n            'Content-Type': 'application/json'\n        }\n    \n    def initialize(self):\n        payload = {\n            'jsonrpc': '2.0',\n            'id': 1,\n            'method': 'initialize',\n            'params': {}\n        }\n        return requests.post(self.endpoint_url, json=payload, headers=self.headers).json()\n    \n    def list_tools(self):\n        payload = {\n            'jsonrpc': '2.0',\n            'id': 2,\n            'method': 'tools/list',\n            'params': {}\n        }\n        return requests.post(self.endpoint_url, json=payload, headers=self.headers).json()\n    \n    def call_tool(self, tool_name, arguments):\n        payload = {\n            'jsonrpc': '2.0',\n            'id': 3,\n            'method': 'tools/call',\n            'params': {\n                'name': tool_name,\n                'arguments': arguments\n            }\n        }\n        return requests.post(self.endpoint_url, json=payload, headers=self.headers).json()\n\n# Usage\nclient = SnowflakeMCPClient(\n    endpoint_url='https://myaccount.snowflakecomputing.com/api/v2/databases/GHOST_DETECTION/schemas/APP/mcp-servers/GHOST_DETECTION_MCP_SERVER',\n    oauth_token='<your_oauth_token>'\n)\n\n# Initialize\nresult = client.initialize()\nprint(result)\n\n# List tools\ntools = client.list_tools()\nprint(tools)\n\n# Search for ghosts\nresult = client.call_tool('ghost-search', {'query': 'shadow entity', 'limit': 5})\nprint(result)"
+  }
+}
+

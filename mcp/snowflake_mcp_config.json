@@ -1,0 +1,264 @@
+{
+  "mcpServers": {
+    "ghost-detection-snowflake": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-snowflake",
+        "--account",
+        "${SNOWFLAKE_ACCOUNT}",
+        "--username",
+        "${SNOWFLAKE_USER}",
+        "--password",
+        "${SNOWFLAKE_PASSWORD}",
+        "--database",
+        "GHOST_DETECTION",
+        "--warehouse",
+        "GHOST_DETECTION_WH",
+        "--role",
+        "${SNOWFLAKE_ROLE}"
+      ],
+      "env": {
+        "SNOWFLAKE_ACCOUNT": "",
+        "SNOWFLAKE_USER": "",
+        "SNOWFLAKE_PASSWORD": "",
+        "SNOWFLAKE_ROLE": "GHOSTBUSTER"
+      },
+      "metadata": {
+        "name": "Ghost Detection Snowflake MCP Server",
+        "version": "1.0.0",
+        "description": "MCP server providing AI agents access to Ghost Detection database in Snowflake",
+        "author": "SnowGhost Breakers Team",
+        "capabilities": [
+          "query_execution",
+          "data_retrieval",
+          "schema_inspection",
+          "cortex_ai_integration",
+          "stored_procedure_execution"
+        ]
+      }
+    }
+  },
+  "resources": [
+    {
+      "uri": "snowflake://ghost-detection/ghosts",
+      "name": "Ghost Registry",
+      "description": "Access to complete ghost registry data",
+      "mimeType": "application/json",
+      "schema": {
+        "table": "GHOST_DETECTION.APP.GHOSTS",
+        "columns": ["ghost_id", "ghost_name", "ghost_type", "threat_level", "status", "confidence_score"]
+      }
+    },
+    {
+      "uri": "snowflake://ghost-detection/sightings",
+      "name": "Ghost Sightings",
+      "description": "All ghost sighting and encounter data",
+      "mimeType": "application/json",
+      "schema": {
+        "table": "GHOST_DETECTION.APP.GHOST_SIGHTINGS",
+        "columns": ["sighting_id", "ghost_id", "location_name", "sighting_datetime", "paranormal_activity_level"]
+      }
+    },
+    {
+      "uri": "snowflake://ghost-detection/analytics/activity-summary",
+      "name": "Ghost Activity Summary",
+      "description": "Comprehensive ghost activity metrics and analytics",
+      "mimeType": "application/json",
+      "schema": {
+        "view": "GHOST_DETECTION.ANALYTICS.VW_GHOST_ACTIVITY_SUMMARY"
+      }
+    },
+    {
+      "uri": "snowflake://ghost-detection/analytics/hotspots",
+      "name": "Paranormal Hotspots",
+      "description": "Geographic analysis of paranormal activity concentration",
+      "mimeType": "application/json",
+      "schema": {
+        "view": "GHOST_DETECTION.ANALYTICS.VW_PARANORMAL_HOTSPOTS"
+      }
+    },
+    {
+      "uri": "snowflake://ghost-detection/vocabulary",
+      "name": "Business Vocabulary",
+      "description": "Ghost ontology and taxonomy definitions",
+      "mimeType": "application/json",
+      "schema": {
+        "table": "GHOST_DETECTION.APP.BUSINESS_VOCABULARY"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "name": "query_ghosts",
+      "description": "Query ghost registry with natural language or SQL",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural language query or SQL statement"
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "threat_level": {"type": "string", "enum": ["Low", "Medium", "High", "Extreme"]},
+              "ghost_type": {"type": "string"},
+              "status": {"type": "string", "enum": ["Active", "Dormant", "Captured", "Neutralized"]}
+            }
+          },
+          "limit": {"type": "integer", "default": 100}
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "analyze_sighting",
+      "description": "Analyze a ghost sighting using Cortex AI",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sighting_id": {
+            "type": "string",
+            "description": "Unique identifier for the sighting"
+          }
+        },
+        "required": ["sighting_id"]
+      }
+    },
+    {
+      "name": "generate_ghost_report",
+      "description": "Generate comprehensive AI report for a specific ghost",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ghost_id": {
+            "type": "string",
+            "description": "Unique identifier for the ghost"
+          }
+        },
+        "required": ["ghost_id"]
+      }
+    },
+    {
+      "name": "classify_description",
+      "description": "Classify ghost type from description using AI",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Description of ghost encounter"
+          }
+        },
+        "required": ["description"]
+      }
+    },
+    {
+      "name": "search_vocabulary",
+      "description": "Search business vocabulary and ghost taxonomy",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "search_term": {
+            "type": "string",
+            "description": "Term to search for in vocabulary"
+          }
+        },
+        "required": ["search_term"]
+      }
+    },
+    {
+      "name": "find_similar_sightings",
+      "description": "Find similar ghost sightings using semantic search",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Reference description to find similar sightings"
+          },
+          "limit": {"type": "integer", "default": 5}
+        },
+        "required": ["description"]
+      }
+    },
+    {
+      "name": "get_threat_assessment",
+      "description": "Get current threat assessment for all active ghosts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "include_inactive": {"type": "boolean", "default": false}
+        }
+      }
+    },
+    {
+      "name": "ask_database",
+      "description": "Ask natural language question about ghost data",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "Natural language question"
+          }
+        },
+        "required": ["question"]
+      }
+    },
+    {
+      "name": "run_agent_action",
+      "description": "Execute an AI agent action",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "AI agent identifier"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["monitor_threats", "analyze_sightings", "assign_investigators", "generate_predictions", "daily_summary"]
+          }
+        },
+        "required": ["agent_id", "action"]
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "analyze_threat",
+      "description": "Analyze and assess ghost threats",
+      "arguments": [
+        {
+          "name": "ghost_id",
+          "description": "Ghost to analyze",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "investigation_brief",
+      "description": "Generate investigation briefing",
+      "arguments": [
+        {
+          "name": "investigation_id",
+          "description": "Investigation case ID",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "hotspot_analysis",
+      "description": "Analyze paranormal hotspot",
+      "arguments": [
+        {
+          "name": "location",
+          "description": "Location to analyze",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
+
