@@ -71,7 +71,7 @@ A **comprehensive, enterprise-grade ghost detection and analysis system** runnin
 - Behavior categorization
 
 ### Embeddings & Semantic Search
-- Vector embeddings with `snowflake-arctic-embed-l`
+- Vector embeddings with `snowflake-arctic-embed-l-v2.0-8k`
 - Semantic similarity search
 - Related sighting detection
 - Pattern identification

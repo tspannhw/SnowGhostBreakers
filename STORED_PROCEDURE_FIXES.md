@@ -35,8 +35,8 @@ BEGIN
         SELECT 
             s.sighting_id,
             VECTOR_COSINE_SIMILARITY(
-                SNOWFLAKE.CORTEX.EMBED_TEXT_768(''snowflake-arctic-embed-l'', :1),
-                SNOWFLAKE.CORTEX.EMBED_TEXT_768(''snowflake-arctic-embed-l'', s.description)
+                SNOWFLAKE.CORTEX.AI_EMBED(''snowflake-arctic-embed-l-v2.0-8k'', :1),
+                SNOWFLAKE.CORTEX.AI_EMBED(''snowflake-arctic-embed-l-v2.0-8k'', s.description)
             ) as similarity_score,
             s.description
         FROM GHOST_SIGHTINGS s
@@ -64,8 +64,8 @@ BEGIN
             SELECT 
                 s.sighting_id,
                 VECTOR_COSINE_SIMILARITY(
-                    SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', :description_text),
-                    SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', s.description)
+                    SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', :description_text),
+                    SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
                 ) as similarity_score,
                 s.description
             FROM GHOST_SIGHTINGS s
@@ -177,7 +177,7 @@ CALL FIND_SIMILAR_SIGHTINGS('green entity consuming food', 2);
    - `limit_count` - Maximum number of results to return
 
 2. **Calculates Similarity:**
-   - Uses Cortex `EMBED_TEXT_768` to create embeddings
+   - Uses Cortex `AI_EMBED` to create embeddings
    - Compares input text embedding with all sighting descriptions
    - Uses `VECTOR_COSINE_SIMILARITY` for comparison
 
@@ -283,8 +283,8 @@ CALL FIND_SIMILAR_SIGHTINGS(
 **Solution:** Ensure Cortex AI is enabled:
 ```sql
 -- Test Cortex availability
-SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768(
-    'snowflake-arctic-embed-l',
+SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+    'snowflake-arctic-embed-l-v2.0-8k',
     'test'
 );
 ```

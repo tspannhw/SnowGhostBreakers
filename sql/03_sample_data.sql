@@ -9,11 +9,11 @@ USE SCHEMA APP;
 -- Insert sample investigators
 INSERT INTO INVESTIGATORS (investigator_id, investigator_name, email, specialization, experience_years, cases_solved)
 VALUES
-    ('INV001', 'Dr. Peter Venkman', 'pvenkman@ghostbusters.com', 'Lead Investigator', 15, 127),
-    ('INV002', 'Dr. Raymond Stantz', 'rstantz@ghostbusters.com', 'EMF Expert', 18, 145),
-    ('INV003', 'Dr. Egon Spengler', 'espengler@ghostbusters.com', 'Technician', 20, 156),
-    ('INV004', 'Winston Zeddemore', 'wzeddemore@ghostbusters.com', 'Field Specialist', 12, 98),
-    ('INV005', 'Dana Barrett', 'dbarrett@ghostbusters.com', 'Medium', 8, 45);
+    ('INV001', 'Dr. Peter Venkman', 'pvenkman@snowghostbreakers.com', 'Lead Investigator', 15, 127),
+    ('INV002', 'Dr. Raymond Stantz', 'rstantz@snowghostbreakers.com', 'EMF Expert', 18, 145),
+    ('INV003', 'Dr. Egon Spengler', 'espengler@snowghostbreakers.com', 'Technician', 20, 156),
+    ('INV004', 'Winston Zeddemore', 'wzeddemore@snowghostbreakers.com', 'Field Specialist', 12, 98),
+    ('INV005', 'Dana Barrett', 'dbarrett@snowghostbreakers.com', 'Medium', 8, 45);
 
 -- Insert sample ghosts
 INSERT INTO GHOSTS (ghost_id, ghost_name, ghost_type, threat_level, description, manifestation_frequency, 
@@ -95,12 +95,12 @@ INSERT INTO GHOST_AI_ANALYSIS (analysis_id, evidence_id, sighting_id, ghost_id, 
                                model_used, confidence_score, detected_entities, sentiment_score,
                                anomaly_detected, summary, recommendations)
 VALUES
-    ('ANALYSIS001', 'EVID001', 'SIGHT001', 'GH001', 'Image_Classification', 'snowflake-arctic-embed-l',
+    ('ANALYSIS001', 'EVID001', 'SIGHT001', 'GH001', 'Image_Classification', 'snowflake-arctic-embed-l-v2.0-8k',
      0.92, ARRAY_CONSTRUCT('humanoid_figure', 'translucent_appearance', 'vintage_clothing'), NULL, TRUE,
      'Analysis confirms presence of anomalous translucent figure matching historical description of former librarian. High confidence in paranormal classification.',
      'Continue monitoring location. Deploy full spectrum cameras. Document any interaction with library materials.'),
     
-    ('ANALYSIS002', 'EVID002', 'SIGHT002', 'GH002', 'Image_Classification', 'snowflake-arctic-embed-l',
+    ('ANALYSIS002', 'EVID002', 'SIGHT002', 'GH002', 'Image_Classification', 'snowflake-arctic-embed-l-v2.0-8k',
      0.98, ARRAY_CONSTRUCT('ectoplasmic_entity', 'green_coloration', 'motion_blur'), NULL, TRUE,
      'Highly confident identification of Class 5 free-roaming vapor. Ectoplasm samples show high PKE levels. Entity demonstrates consistent behavior patterns.',
      'Recommend containment using proton pack. Entity shows food attraction - can be lured with bait. Exercise caution due to slime hazard.'),

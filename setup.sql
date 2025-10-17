@@ -22,6 +22,8 @@
 -- 10. sql/10_snowflake_native_mcp_server.sql  (Snowflake MCP)
 -- 11. sql/11_neo4j_graph_analytics_setup.sql  (Neo4j Graph - optional)
 -- 12. sql/12_neo4j_graph_algorithms.sql       (Graph algorithms - optional)
+-- 13. sql/13_offices_table.sql                (Global Offices - recommended)
+-- 14. sql/14_image_embeddings_table.sql       (Image Embeddings & Similarity Search - recommended)
 
 -- ============================================
 -- OPTION 2: SNOWSQL CLI
@@ -54,6 +56,7 @@ SHOW TASKS IN GHOST_DETECTION.APP;
 -- Quick verification queries
 SELECT COUNT(*) as total_ghosts FROM GHOST_DETECTION.APP.GHOSTS;
 SELECT COUNT(*) as total_sightings FROM GHOST_DETECTION.APP.GHOST_SIGHTINGS;
+SELECT COUNT(*) as global_offices FROM GHOST_DETECTION.APP.OFFICES;
 SELECT COUNT(*) as vocabulary_terms FROM GHOST_DETECTION.APP.BUSINESS_VOCABULARY;
 SELECT COUNT(*) as ontology_classes FROM GHOST_DETECTION.APP.GHOST_ONTOLOGY;
 SELECT COUNT(*) as ai_agents FROM GHOST_DETECTION.APP.AI_AGENTS;

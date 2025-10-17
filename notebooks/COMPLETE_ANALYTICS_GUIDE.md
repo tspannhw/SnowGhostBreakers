@@ -145,11 +145,11 @@ for desc in test_cases:
 search_desc = "Cold spots and floating books in library"
 similar_df = session.sql(f"""
 WITH target AS (
-    SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', '{search_desc}') as emb
+    SELECT SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', '{search_desc}') as emb
 )
 SELECT s.location_name, s.description, g.ghost_name,
        VECTOR_COSINE_SIMILARITY((SELECT emb FROM target),
-           SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', s.description)) as similarity
+           SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)) as similarity
 FROM GHOST_SIGHTINGS s
 JOIN GHOSTS g ON s.ghost_id = g.ghost_id
 WHERE s.description IS NOT NULL
@@ -453,11 +453,11 @@ print("🔎 Semantic Search Results:\n")
 for query in test_queries:
     results = session.sql(f"""
     WITH target AS (
-        SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', '{query}') as emb
+        SELECT SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', '{query}') as emb
     )
     SELECT s.location_name, LEFT(s.description, 60) as desc,
            VECTOR_COSINE_SIMILARITY((SELECT emb FROM target),
-               SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', s.description)) as sim
+               SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)) as sim
     FROM GHOST_SIGHTINGS s
     WHERE s.description IS NOT NULL
     ORDER BY sim DESC LIMIT 3

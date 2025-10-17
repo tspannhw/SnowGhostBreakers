@@ -200,8 +200,8 @@ class GhostAnalytics:
         """
         query = f"""
         WITH target AS (
-            SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768(
-                'snowflake-arctic-embed-l',
+            SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+                'snowflake-arctic-embed-l-v2.0-8k',
                 '{description}'
             ) as embedding
         )
@@ -212,7 +212,7 @@ class GhostAnalytics:
             g.ghost_name,
             VECTOR_COSINE_SIMILARITY(
                 (SELECT embedding FROM target),
-                SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', s.description)
+                SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
             ) as similarity
         FROM GHOST_SIGHTINGS s
         JOIN GHOSTS g ON s.ghost_id = g.ghost_id
@@ -395,27 +395,79 @@ def generate_analysis_report(analytics: GhostAnalytics) -> str:
     return report
 
 
-def main():
-    """Main execution function"""
+def get_connection_parameters():
+    """
+    Get Snowflake connection parameters with support for both password and key pair authentication.
     
-    # Connection parameters (update with your credentials)
+    For key pair auth, set environment variables:
+    - SNOWFLAKE_PRIVATE_KEY_PATH: path to private key file
+    - SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: (optional) passphrase for encrypted key
+    
+    For password auth, set:
+    - SNOWFLAKE_PASSWORD
+    """
+    import os
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    
     connection_params = {
-        "account": "your_account",
-        "user": "your_user",
-        "password": "your_password",
-        "warehouse": "GHOST_DETECTION_WH",
+        "account": os.getenv("SNOWFLAKE_ACCOUNT", "your_account"),
+        "user": os.getenv("SNOWFLAKE_USER", "your_user"),
+        "role": os.getenv("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
+        "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE", "GHOST_DETECTION_WH"),
         "database": "GHOST_DETECTION",
         "schema": "APP"
     }
     
-    # Alternative: Use environment variables or config file
-    # import os
-    # connection_params = {
-    #     "account": os.getenv("SNOWFLAKE_ACCOUNT"),
-    #     "user": os.getenv("SNOWFLAKE_USER"),
-    #     "password": os.getenv("SNOWFLAKE_PASSWORD"),
-    #     ...
-    # }
+    # Check for key pair authentication
+    private_key_path = os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH")
+    
+    if private_key_path and os.path.exists(private_key_path):
+        print("🔐 Using key pair authentication")
+        
+        # Read private key
+        with open(private_key_path, "rb") as key_file:
+            private_key_data = key_file.read()
+        
+        # Get passphrase if provided
+        passphrase = os.getenv("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE")
+        passphrase_bytes = passphrase.encode() if passphrase else None
+        
+        # Load and deserialize private key
+        private_key = serialization.load_pem_private_key(
+            private_key_data,
+            password=passphrase_bytes,
+            backend=default_backend()
+        )
+        
+        # Serialize to DER format for Snowflake
+        pkb = private_key.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        
+        connection_params["private_key"] = pkb
+        print("✅ Private key loaded successfully")
+    else:
+        # Use password authentication
+        password = os.getenv("SNOWFLAKE_PASSWORD")
+        if password:
+            connection_params["password"] = password
+            print("🔐 Using password authentication")
+        else:
+            # Fallback to hardcoded (for backwards compatibility)
+            connection_params["password"] = "your_password"
+            print("⚠️  Using default password - set SNOWFLAKE_PASSWORD or SNOWFLAKE_PRIVATE_KEY_PATH")
+    
+    return connection_params
+
+
+def main():
+    """Main execution function"""
+    
+    # Get connection parameters (supports both password and key pair auth)
+    connection_params = get_connection_parameters()
     
     try:
         # Initialize analytics

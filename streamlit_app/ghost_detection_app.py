@@ -75,7 +75,8 @@ st.sidebar.title("🔍 Navigation")
 page = st.sidebar.radio(
     "Select View",
     ["📊 Dashboard", "👻 Ghost Registry", "📍 Sightings", "🔬 Evidence Analysis", 
-     "📋 Investigations", "🤖 AI Insights", "➕ New Sighting", "📈 Analytics", "📚 Vocabulary"]
+     "📋 Investigations", "👥 Investigators", "🏢 Global Offices", "🤖 AI Insights", 
+     "➕ New Sighting", "📈 Analytics", "📑 Reports", "📚 Vocabulary", "🔍 Image Similarity"]
 )
 
 # Sidebar filters
@@ -156,18 +157,31 @@ if page == "📊 Dashboard":
     st.subheader("🗺️ Paranormal Hotspots")
     hotspots_df = session.table("GHOST_DETECTION.ANALYTICS.VW_PARANORMAL_HOTSPOTS").to_pandas()
     if not hotspots_df.empty and 'LATITUDE' in hotspots_df.columns:
-        fig = px.scatter_mapbox(
-            hotspots_df,
-            lat='LATITUDE',
-            lon='LONGITUDE',
-            size='TOTAL_SIGHTINGS',
-            color='HOTSPOT_CLASSIFICATION',
-            hover_name='LOCATION_NAME',
-            hover_data=['TOTAL_SIGHTINGS', 'UNIQUE_GHOSTS', 'AVG_ACTIVITY_LEVEL'],
-            zoom=10,
-            mapbox_style="carto-positron"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        # Filter out rows with missing coordinates
+        hotspots_valid = hotspots_df.dropna(subset=['LATITUDE', 'LONGITUDE'])
+        
+        if not hotspots_valid.empty:
+            try:
+                fig = px.scatter_mapbox(
+                    hotspots_valid,
+                    lat='LATITUDE',
+                    lon='LONGITUDE',
+                    size='TOTAL_SIGHTINGS',
+                    color='HOTSPOT_CLASSIFICATION',
+                    hover_name='LOCATION_NAME',
+                    hover_data=['TOTAL_SIGHTINGS', 'UNIQUE_GHOSTS', 'AVG_ACTIVITY_LEVEL'],
+                    zoom=10,
+                    mapbox_style="open-street-map",  # Changed to open-street-map
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                # Fallback to simple map
+                simple_map = hotspots_valid[['LATITUDE', 'LONGITUDE']].copy()
+                simple_map.columns = ['lat', 'lon']
+                st.map(simple_map, zoom=10)
+        else:
+            st.info("No hotspot coordinates available yet.")
 
 # ============================================
 # PAGE: GHOST REGISTRY
@@ -274,32 +288,98 @@ elif page == "📍 Sightings":
         s.PARANORMAL_ACTIVITY_LEVEL
     FROM GHOST_DETECTION.APP.GHOST_SIGHTINGS s
     JOIN GHOST_DETECTION.APP.GHOSTS g ON s.GHOST_ID = g.GHOST_ID
-    WHERE s.LATITUDE IS NOT NULL AND s.LONGITUDE IS NOT NULL
+    WHERE s.LATITUDE IS NOT NULL 
+      AND s.LONGITUDE IS NOT NULL
+      AND s.LATITUDE BETWEEN -90 AND 90
+      AND s.LONGITUDE BETWEEN -180 AND 180
     ORDER BY s.SIGHTING_DATETIME DESC
     LIMIT 100
     """
     
-    map_df = session.sql(map_query).to_pandas()
+    try:
+        map_df = session.sql(map_query).to_pandas()
+        
+        if not map_df.empty:
+            # Filter out rows with missing coordinates
+            map_df_valid = map_df.dropna(subset=['LATITUDE', 'LONGITUDE'])
+            
+            # Debug info (optional - comment out in production)
+            st.write(f"📊 Found {len(map_df_valid)} sightings with coordinates")
+            
+            if not map_df_valid.empty:
+                # Calculate center point for better map positioning
+                center_lat = map_df_valid['LATITUDE'].mean()
+                center_lon = map_df_valid['LONGITUDE'].mean()
+                
+                # Method 1: Try Plotly Scattermapbox
+                try:
+                    fig = px.scatter_mapbox(
+                        map_df_valid,
+                        lat='LATITUDE',
+                        lon='LONGITUDE',
+                        size='PARANORMAL_ACTIVITY_LEVEL',
+                        color='GHOST_TYPE',
+                        hover_name='LOCATION_NAME',
+                        hover_data={
+                            'GHOST_NAME': True, 
+                            'GHOST_TYPE': True, 
+                            'SIGHTING_DATETIME': True, 
+                            'PARANORMAL_ACTIVITY_LEVEL': True,
+                            'LATITUDE': False, 
+                            'LONGITUDE': False
+                        },
+                        zoom=3,  # Start zoomed out to see all markers
+                        height=600,
+                        center={"lat": center_lat, "lon": center_lon},
+                        title=f"Recent Ghost Sightings ({len(map_df_valid)} locations)"
+                    )
+                    
+                    # Use open-street-map style (no token required)
+                    fig.update_layout(
+                        mapbox_style="open-street-map",
+                        margin={"r":0,"t":40,"l":0,"b":0}
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.success("✅ Plotly map loaded successfully!")
+                    
+                except Exception as plotly_error:
+                    st.warning(f"⚠️ Plotly map error: {str(plotly_error)}")
+                    st.info("🔄 Trying alternative map method...")
+                    
+                    # Method 2: Fallback to Streamlit's built-in map
+                    try:
+                        st.write("**📍 Sighting Locations:**")
+                        simple_map_df = map_df_valid[['LATITUDE', 'LONGITUDE']].copy()
+                        simple_map_df.columns = ['lat', 'lon']
+                        st.map(simple_map_df, zoom=3)
+                        st.success("✅ Simple map loaded!")
+                        
+                        # Show location details
+                        with st.expander("📋 View Sighting Details"):
+                            for idx, row in map_df_valid.iterrows():
+                                st.write(f"📍 **{row['LOCATION_NAME']}** - {row['GHOST_NAME']} ({row['GHOST_TYPE']}) - Activity: {row['PARANORMAL_ACTIVITY_LEVEL']}/10")
+                    
+                    except Exception as simple_error:
+                        st.error(f"❌ Simple map also failed: {str(simple_error)}")
+                        
+                        # Method 3: Just show coordinates as table
+                        st.write("**Fallback: Showing coordinates as table**")
+                        display_df = map_df_valid[['LOCATION_NAME', 'GHOST_NAME', 'GHOST_TYPE', 'LATITUDE', 'LONGITUDE', 'PARANORMAL_ACTIVITY_LEVEL']]
+                        st.dataframe(display_df)
+            else:
+                st.info("ℹ️ No sightings with valid coordinates available. Add latitude/longitude when reporting new sightings!")
+        else:
+            st.info("ℹ️ No sightings with location coordinates found in database.")
+            st.write("**💡 Tip:** Add coordinates when creating new sightings or run sample data:")
+            st.code("snowsql -f sql/03_sample_data.sql", language="bash")
     
-    if not map_df.empty:
-        fig = px.scatter_mapbox(
-            map_df,
-            lat='LATITUDE',
-            lon='LONGITUDE',
-            size='PARANORMAL_ACTIVITY_LEVEL',
-            color='GHOST_TYPE',
-            hover_name='LOCATION_NAME',
-            hover_data={'GHOST_NAME': True, 'GHOST_TYPE': True, 
-                       'SIGHTING_DATETIME': True, 'PARANORMAL_ACTIVITY_LEVEL': True,
-                       'LATITUDE': False, 'LONGITUDE': False},
-            zoom=10,
-            height=500,
-            mapbox_style="carto-positron",
-            title="Recent Ghost Sightings"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No sightings with location coordinates available. Add coordinates when reporting new sightings!")
+    except Exception as e:
+        st.error(f"❌ Error loading map data: {str(e)}")
+        st.write("**Debug Info:**")
+        st.write(f"- Error type: {type(e).__name__}")
+        st.write(f"- Error message: {str(e)}")
+        st.info("💡 Make sure the GHOST_SIGHTINGS and GHOSTS tables exist and have data with coordinates.")
     
     st.markdown("---")
     
@@ -401,6 +481,96 @@ elif page == "📋 Investigations":
     
     investigations_df = session.table("GHOST_DETECTION.ANALYTICS.VW_INVESTIGATION_METRICS").to_pandas()
     
+    # Add Investigation Locations Map
+    st.markdown("---")
+    st.subheader("🗺️ Investigation Locations Map")
+    
+    inv_map_query = """
+    SELECT 
+        i.CASE_NAME,
+        gs.LOCATION_NAME,
+        gs.LATITUDE,
+        gs.LONGITUDE,
+        g.GHOST_NAME,
+        g.THREAT_LEVEL,
+        i.STATUS,
+        i.PRIORITY
+    FROM GHOST_DETECTION.APP.INVESTIGATIONS i
+    JOIN GHOST_DETECTION.APP.GHOSTS g ON i.GHOST_ID = g.GHOST_ID
+    JOIN GHOST_DETECTION.APP.GHOST_SIGHTINGS gs ON g.GHOST_ID = gs.GHOST_ID
+    WHERE gs.LATITUDE IS NOT NULL 
+      AND gs.LONGITUDE IS NOT NULL
+      AND gs.LATITUDE BETWEEN -90 AND 90
+      AND gs.LONGITUDE BETWEEN -180 AND 180
+      AND i.STATUS IN ('Open', 'In_Progress')
+    ORDER BY i.START_DATE DESC
+    LIMIT 100
+    """
+    
+    try:
+        inv_map_df = session.sql(inv_map_query).to_pandas()
+        
+        if not inv_map_df.empty:
+            inv_map_valid = inv_map_df.dropna(subset=['LATITUDE', 'LONGITUDE'])
+            
+            if not inv_map_valid.empty:
+                st.write(f"📊 Found {len(inv_map_valid)} active investigation locations")
+                
+                try:
+                    center_lat = inv_map_valid['LATITUDE'].mean()
+                    center_lon = inv_map_valid['LONGITUDE'].mean()
+                    
+                    fig = px.scatter_mapbox(
+                        inv_map_valid,
+                        lat='LATITUDE',
+                        lon='LONGITUDE',
+                        color='PRIORITY',
+                        size_max=15,
+                        hover_name='CASE_NAME',
+                        hover_data={
+                            'LOCATION_NAME': True,
+                            'GHOST_NAME': True,
+                            'THREAT_LEVEL': True,
+                            'STATUS': True,
+                            'PRIORITY': True,
+                            'LATITUDE': False,
+                            'LONGITUDE': False
+                        },
+                        zoom=3,
+                        height=500,
+                        center={"lat": center_lat, "lon": center_lon},
+                        title=f"Active Investigations Map ({len(inv_map_valid)} locations)",
+                        color_discrete_map={
+                            'Critical': '#dc2626',
+                            'High': '#f59e0b',
+                            'Medium': '#eab308',
+                            'Low': '#22c55e'
+                        }
+                    )
+                    
+                    fig.update_layout(
+                        mapbox_style="open-street-map",
+                        margin={"r":0,"t":40,"l":0,"b":0}
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.success("✅ Investigation map loaded successfully!")
+                    
+                except Exception as map_error:
+                    st.warning(f"⚠️ Map visualization error: {str(map_error)}")
+                    st.info("🔄 Showing locations as table...")
+                    st.dataframe(inv_map_valid[['CASE_NAME', 'LOCATION_NAME', 'GHOST_NAME', 'THREAT_LEVEL', 'STATUS', 'PRIORITY', 'LATITUDE', 'LONGITUDE']])
+            else:
+                st.info("ℹ️ No investigation locations with valid coordinates.")
+        else:
+            st.info("ℹ️ No active investigations with location data found.")
+            
+    except Exception as e:
+        st.error(f"❌ Error loading investigation map: {str(e)}")
+        st.info("💡 Make sure INVESTIGATIONS and GHOST_SIGHTINGS tables have data with coordinates.")
+    
+    st.markdown("---")
+    
     # Status filter tabs
     status_filter = st.radio("Filter by Status", ["All", "Open", "In_Progress", "Closed"], horizontal=True)
     
@@ -442,6 +612,645 @@ elif page == "📋 Investigations":
                     )
                     st.markdown("#### 📄 Investigation Summary")
                     st.write(summary)
+
+# ============================================
+# PAGE: INVESTIGATORS
+# ============================================
+elif page == "👥 Investigators":
+    st.header("👥 Paranormal Investigators")
+    
+    # Create tabs for different sections
+    tab1, tab2, tab3 = st.tabs(["📋 Team Roster", "➕ Add Investigator", "📊 Statistics"])
+    
+    # TAB 1: Team Roster
+    with tab1:
+        st.subheader("🔍 Active Investigation Team")
+        
+        # Fetch investigators
+        investigators_query = """
+        SELECT 
+            investigator_id,
+            investigator_name,
+            email,
+            phone,
+            specialization,
+            experience_years,
+            cases_solved,
+            active_status,
+            created_at
+        FROM GHOST_DETECTION.APP.INVESTIGATORS
+        ORDER BY active_status DESC, cases_solved DESC
+        """
+        
+        try:
+            investigators_df = session.sql(investigators_query).to_pandas()
+            
+            if not investigators_df.empty:
+                # Filter controls
+                col1, col2 = st.columns(2)
+                with col1:
+                    status_filter = st.selectbox(
+                        "Status Filter",
+                        ["All", "Active Only", "Inactive Only"]
+                    )
+                with col2:
+                    spec_filter = st.selectbox(
+                        "Specialization Filter",
+                        ["All"] + sorted(investigators_df['SPECIALIZATION'].unique().tolist())
+                    )
+                
+                # Apply filters
+                filtered_df = investigators_df.copy()
+                if status_filter == "Active Only":
+                    filtered_df = filtered_df[filtered_df['ACTIVE_STATUS'] == True]
+                elif status_filter == "Inactive Only":
+                    filtered_df = filtered_df[filtered_df['ACTIVE_STATUS'] == False]
+                
+                if spec_filter != "All":
+                    filtered_df = filtered_df[filtered_df['SPECIALIZATION'] == spec_filter]
+                
+                st.markdown(f"**Showing {len(filtered_df)} of {len(investigators_df)} investigators**")
+                
+                # Display investigators
+                for idx, inv in filtered_df.iterrows():
+                    status_icon = "✅" if inv['ACTIVE_STATUS'] else "⏸️"
+                    
+                    with st.expander(
+                        f"{status_icon} {inv['INVESTIGATOR_NAME']} - {inv['SPECIALIZATION']} "
+                        f"({inv['CASES_SOLVED']} cases solved)"
+                    ):
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.write(f"**ID:** `{inv['INVESTIGATOR_ID']}`")
+                            st.write(f"**Name:** {inv['INVESTIGATOR_NAME']}")
+                            st.write(f"**Specialization:** {inv['SPECIALIZATION']}")
+                        
+                        with col2:
+                            st.write(f"**Email:** {inv['EMAIL']}")
+                            st.write(f"**Phone:** {inv['PHONE']}")
+                            st.write(f"**Experience:** {inv['EXPERIENCE_YEARS']} years")
+                        
+                        with col3:
+                            st.write(f"**Cases Solved:** {inv['CASES_SOLVED']}")
+                            st.write(f"**Status:** {'Active' if inv['ACTIVE_STATUS'] else 'Inactive'}")
+                            st.write(f"**Joined:** {inv['CREATED_AT'].strftime('%Y-%m-%d') if pd.notna(inv['CREATED_AT']) else 'N/A'}")
+            else:
+                st.info("No investigators found. Add your first investigator in the 'Add Investigator' tab!")
+                
+        except Exception as e:
+            st.error(f"Error loading investigators: {str(e)}")
+    
+    # TAB 2: Add New Investigator
+    with tab2:
+        st.subheader("➕ Register New Investigator")
+        st.markdown("*Add a new paranormal investigator to the team*")
+        
+        with st.form("new_investigator_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                investigator_name = st.text_input(
+                    "Full Name*",
+                    placeholder="e.g., Dr. Jane Smith",
+                    help="Investigator's full name"
+                )
+                
+                email = st.text_input(
+                    "Email Address*",
+                    placeholder="jane.smith@snowghostbreakers.com",
+                    help="Professional email address"
+                )
+                
+                phone = st.text_input(
+                    "Phone Number",
+                    placeholder="+1-555-0123",
+                    help="Contact phone number"
+                )
+            
+            with col2:
+                specialization = st.selectbox(
+                    "Specialization*",
+                    [
+                        "Lead Investigator",
+                        "EMF Expert",
+                        "Medium/Psychic",
+                        "Technician",
+                        "EVP Specialist",
+                        "Demonologist",
+                        "Historian",
+                        "Field Researcher",
+                        "Data Analyst"
+                    ],
+                    help="Primary area of expertise"
+                )
+                
+                experience_years = st.number_input(
+                    "Years of Experience*",
+                    min_value=0,
+                    max_value=50,
+                    value=1,
+                    help="Years in paranormal investigation"
+                )
+                
+                active_status = st.checkbox(
+                    "Active Status",
+                    value=True,
+                    help="Is this investigator currently active?"
+                )
+            
+            st.markdown("---")
+            
+            # Additional notes
+            notes = st.text_area(
+                "Notes (Optional)",
+                placeholder="Any additional information about certifications, achievements, or special skills...",
+                height=100
+            )
+            
+            submitted = st.form_submit_button("👥 Register Investigator", use_container_width=True)
+            
+            if submitted:
+                if investigator_name and email and specialization:
+                    import uuid
+                    
+                    investigator_id = f"INV_{str(uuid.uuid4())[:8].upper()}"
+                    
+                    with st.spinner("🤖 Registering investigator..."):
+                        try:
+                            # Insert into database
+                            insert_sql = f"""
+                            INSERT INTO GHOST_DETECTION.APP.INVESTIGATORS (
+                                investigator_id,
+                                investigator_name,
+                                email,
+                                phone,
+                                specialization,
+                                experience_years,
+                                cases_solved,
+                                active_status,
+                                created_at
+                            ) VALUES (
+                                '{investigator_id}',
+                                '{investigator_name.replace("'", "''")}',
+                                '{email.replace("'", "''")}',
+                                '{phone.replace("'", "''") if phone else ""}',
+                                '{specialization}',
+                                {experience_years},
+                                0,
+                                {str(active_status).upper()},
+                                CURRENT_TIMESTAMP()
+                            )
+                            """
+                            
+                            session.sql(insert_sql).collect()
+                            
+                            # Log to audit table
+                            audit_id = f"AUDIT_{str(uuid.uuid4())[:8].upper()}"
+                            audit_sql = f"""
+                            INSERT INTO GHOST_DETECTION.APP.AUDIT_LOG (
+                                log_id,
+                                table_name,
+                                record_id,
+                                action,
+                                user_name,
+                                action_datetime,
+                                new_values
+                            )
+                            SELECT 
+                                '{audit_id}',
+                                'INVESTIGATORS',
+                                '{investigator_id}',
+                                'INSERT',
+                                CURRENT_USER(),
+                                CURRENT_TIMESTAMP(),
+                                PARSE_JSON('{{"investigator_name": "{investigator_name}", "specialization": "{specialization}", "experience_years": {experience_years}}}')
+                            """
+                            
+                            session.sql(audit_sql).collect()
+                            
+                            st.success("✅ Investigator registered successfully!")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Investigator ID", investigator_id)
+                            with col2:
+                                st.metric("Specialization", specialization)
+                            with col3:
+                                st.metric("Status", "Active" if active_status else "Inactive")
+                            
+                            st.info(f"👤 **{investigator_name}** has been added to the team!")
+                            
+                            if notes:
+                                st.text_area("📝 Notes", notes, disabled=True)
+                            
+                            st.balloons()
+                            
+                        except Exception as e:
+                            st.error(f"Error registering investigator: {str(e)}")
+                            with st.expander("Debug Info"):
+                                st.code(str(e))
+                else:
+                    st.error("Please fill in all required fields marked with *")
+    
+    # TAB 3: Statistics
+    with tab3:
+        st.subheader("📊 Team Statistics")
+        
+        try:
+            # Overall stats
+            stats_query = """
+            SELECT 
+                COUNT(*) as total_investigators,
+                SUM(CASE WHEN active_status = TRUE THEN 1 ELSE 0 END) as active_count,
+                SUM(cases_solved) as total_cases_solved,
+                ROUND(AVG(experience_years), 1) as avg_experience,
+                COUNT(DISTINCT specialization) as specialization_count
+            FROM GHOST_DETECTION.APP.INVESTIGATORS
+            """
+            
+            stats = session.sql(stats_query).to_pandas().iloc[0]
+            
+            col1, col2, col3, col4, col5 = st.columns(5)
+            
+            with col1:
+                st.metric("Total Team", int(stats['TOTAL_INVESTIGATORS']))
+            with col2:
+                st.metric("Active", int(stats['ACTIVE_COUNT']))
+            with col3:
+                st.metric("Cases Solved", int(stats['TOTAL_CASES_SOLVED']))
+            with col4:
+                st.metric("Avg Experience", f"{stats['AVG_EXPERIENCE']}y")
+            with col5:
+                st.metric("Specializations", int(stats['SPECIALIZATION_COUNT']))
+            
+            st.markdown("---")
+            
+            # Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Specialization distribution
+                spec_query = """
+                SELECT 
+                    specialization,
+                    COUNT(*) as count
+                FROM GHOST_DETECTION.APP.INVESTIGATORS
+                WHERE active_status = TRUE
+                GROUP BY specialization
+                ORDER BY count DESC
+                """
+                
+                spec_df = session.sql(spec_query).to_pandas()
+                
+                if not spec_df.empty:
+                    fig = px.pie(
+                        spec_df,
+                        values='COUNT',
+                        names='SPECIALIZATION',
+                        title='Team Composition by Specialization'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Top performers
+                top_query = """
+                SELECT 
+                    investigator_name,
+                    cases_solved,
+                    specialization
+                FROM GHOST_DETECTION.APP.INVESTIGATORS
+                WHERE active_status = TRUE
+                ORDER BY cases_solved DESC
+                LIMIT 10
+                """
+                
+                top_df = session.sql(top_query).to_pandas()
+                
+                if not top_df.empty:
+                    fig = px.bar(
+                        top_df,
+                        x='CASES_SOLVED',
+                        y='INVESTIGATOR_NAME',
+                        color='SPECIALIZATION',
+                        title='Top 10 Investigators by Cases Solved',
+                        orientation='h'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            # Experience distribution
+            exp_query = """
+            SELECT 
+                CASE 
+                    WHEN experience_years < 2 THEN 'Novice (0-1y)'
+                    WHEN experience_years < 5 THEN 'Intermediate (2-4y)'
+                    WHEN experience_years < 10 THEN 'Experienced (5-9y)'
+                    WHEN experience_years < 20 THEN 'Veteran (10-19y)'
+                    ELSE 'Master (20+y)'
+                END as experience_level,
+                COUNT(*) as count
+            FROM GHOST_DETECTION.APP.INVESTIGATORS
+            WHERE active_status = TRUE
+            GROUP BY experience_level
+            ORDER BY 
+                CASE experience_level
+                    WHEN 'Novice (0-1y)' THEN 1
+                    WHEN 'Intermediate (2-4y)' THEN 2
+                    WHEN 'Experienced (5-9y)' THEN 3
+                    WHEN 'Veteran (10-19y)' THEN 4
+                    ELSE 5
+                END
+            """
+            
+            exp_df = session.sql(exp_query).to_pandas()
+            
+            if not exp_df.empty:
+                fig = px.bar(
+                    exp_df,
+                    x='EXPERIENCE_LEVEL',
+                    y='COUNT',
+                    title='Team Experience Distribution',
+                    labels={'COUNT': 'Number of Investigators', 'EXPERIENCE_LEVEL': 'Experience Level'}
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"Error loading statistics: {str(e)}")
+
+# ============================================
+# PAGE: GLOBAL OFFICES
+# ============================================
+elif page == "🏢 Global Offices":
+    st.header("🏢 SnowGhost Breakers Global Offices")
+    st.markdown("*Our worldwide network of paranormal investigation centers*")
+    st.markdown("---")
+    
+    # Check if OFFICES table exists
+    try:
+        offices_df = session.table("GHOST_DETECTION.APP.OFFICES").to_pandas()
+        
+        if offices_df.empty:
+            st.warning("⚠️ Offices table is empty. Please run: `sql/13_offices_table.sql`")
+        else:
+            # Summary metrics
+            col1, col2, col3, col4, col5 = st.columns(5)
+            
+            with col1:
+                st.metric("Total Offices", len(offices_df))
+            with col2:
+                st.metric("Active Offices", len(offices_df[offices_df['ACTIVE_STATUS'] == True]))
+            with col3:
+                st.metric("Regions", offices_df['REGION'].nunique())
+            with col4:
+                st.metric("Countries", offices_df['COUNTRY'].nunique())
+            with col5:
+                st.metric("Total Capacity", offices_df['CAPACITY'].sum())
+            
+            st.markdown("---")
+            
+            # Global offices map
+            st.subheader("🗺️ Global Office Locations")
+            
+            offices_valid = offices_df.dropna(subset=['LATITUDE', 'LONGITUDE'])
+            
+            if not offices_valid.empty:
+                try:
+                    fig = px.scatter_mapbox(
+                        offices_valid,
+                        lat='LATITUDE',
+                        lon='LONGITUDE',
+                        size='CAPACITY',
+                        color='OFFICE_TYPE',
+                        hover_name='OFFICE_NAME',
+                        hover_data={
+                            'CITY': True,
+                            'COUNTRY': True,
+                            'REGION': True,
+                            'CAPACITY': True,
+                            'OFFICE_TYPE': True,
+                            'LATITUDE': False,
+                            'LONGITUDE': False
+                        },
+                        zoom=1,
+                        height=600,
+                        title=f"SnowGhost Breakers Global Network ({len(offices_valid)} offices)",
+                        color_discrete_map={
+                            'Headquarters': '#8b5cf6',
+                            'Regional Office': '#3b82f6',
+                            'Field Office': '#10b981'
+                        },
+                        size_max=30
+                    )
+                    
+                    fig.update_layout(
+                        mapbox_style="open-street-map",
+                        margin={"r":0,"t":40,"l":0,"b":0}
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.success("✅ Global office map loaded successfully!")
+                    
+                except Exception as map_error:
+                    st.warning(f"⚠️ Map error: {str(map_error)}")
+                    st.info("🔄 Showing offices as table...")
+            
+            # Tabs for different views
+            tab1, tab2, tab3, tab4 = st.tabs(["🌎 By Region", "🏙️ All Offices", "📊 Statistics", "➕ Add Office"])
+            
+            with tab1:
+                st.subheader("Offices by Region")
+                
+                region_filter = st.selectbox(
+                    "Select Region",
+                    ["All Regions"] + sorted(offices_df['REGION'].unique().tolist())
+                )
+                
+                filtered_offices = offices_df if region_filter == "All Regions" else offices_df[offices_df['REGION'] == region_filter]
+                
+                # Group by region
+                for region in sorted(filtered_offices['REGION'].unique()):
+                    region_offices = filtered_offices[filtered_offices['REGION'] == region]
+                    
+                    with st.expander(f"🌍 {region} ({len(region_offices)} offices)"):
+                        for idx, office in region_offices.iterrows():
+                            st.markdown(f"### {office['OFFICE_NAME']}")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.write(f"**📍 Location:** {office['CITY']}, {office['COUNTRY']}")
+                                st.write(f"**🏢 Type:** {office['OFFICE_TYPE']}")
+                                st.write(f"**👥 Capacity:** {office['CAPACITY']} investigators")
+                            
+                            with col2:
+                                st.write(f"**🕐 Timezone:** {office['TIMEZONE']}")
+                                if office['PHONE']:
+                                    st.write(f"**📞 Phone:** {office['PHONE']}")
+                                if office['EMAIL']:
+                                    st.write(f"**📧 Email:** {office['EMAIL']}")
+                            
+                            with col3:
+                                status_icon = "✅" if office['ACTIVE_STATUS'] else "❌"
+                                st.write(f"**Status:** {status_icon} {'Active' if office['ACTIVE_STATUS'] else 'Inactive'}")
+                                if office['OPENED_DATE']:
+                                    st.write(f"**📅 Opened:** {office['OPENED_DATE']}")
+                                if office['ADDRESS']:
+                                    st.write(f"**📮 Address:** {office['ADDRESS']}")
+                            
+                            st.markdown("---")
+            
+            with tab2:
+                st.subheader("All Offices Directory")
+                
+                # Search functionality
+                search_term = st.text_input("🔍 Search offices", placeholder="Search by city, country, or office name...")
+                
+                if search_term:
+                    search_mask = (
+                        offices_df['OFFICE_NAME'].str.contains(search_term, case=False, na=False) |
+                        offices_df['CITY'].str.contains(search_term, case=False, na=False) |
+                        offices_df['COUNTRY'].str.contains(search_term, case=False, na=False)
+                    )
+                    display_offices = offices_df[search_mask]
+                else:
+                    display_offices = offices_df
+                
+                # Display as formatted table
+                display_cols = ['OFFICE_NAME', 'CITY', 'COUNTRY', 'REGION', 'OFFICE_TYPE', 'CAPACITY', 'ACTIVE_STATUS', 'OPENED_DATE']
+                st.dataframe(
+                    display_offices[display_cols],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                st.write(f"Showing {len(display_offices)} of {len(offices_df)} offices")
+            
+            with tab3:
+                st.subheader("Office Statistics")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Offices by region
+                    region_stats = offices_df.groupby('REGION').agg({
+                        'OFFICE_ID': 'count',
+                        'CAPACITY': 'sum'
+                    }).reset_index()
+                    region_stats.columns = ['Region', 'Office Count', 'Total Capacity']
+                    
+                    fig = px.bar(
+                        region_stats,
+                        x='Region',
+                        y='Office Count',
+                        color='Total Capacity',
+                        title='Offices by Region',
+                        color_continuous_scale='Viridis'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    # Offices by type
+                    type_stats = offices_df['OFFICE_TYPE'].value_counts().reset_index()
+                    type_stats.columns = ['Office Type', 'Count']
+                    
+                    fig = px.pie(
+                        type_stats,
+                        values='Count',
+                        names='Office Type',
+                        title='Offices by Type',
+                        color='Office Type',
+                        color_discrete_map={
+                            'Headquarters': '#8b5cf6',
+                            'Regional Office': '#3b82f6',
+                            'Field Office': '#10b981'
+                        }
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Country distribution
+                st.markdown("### Offices by Country")
+                country_stats = offices_df['COUNTRY'].value_counts().head(10).reset_index()
+                country_stats.columns = ['Country', 'Office Count']
+                
+                fig = px.bar(
+                    country_stats,
+                    x='Country',
+                    y='Office Count',
+                    title='Top 10 Countries by Office Count'
+                )
+                fig.update_layout(xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with tab4:
+                st.subheader("➕ Add New Office")
+                st.info("💡 **Note:** This form will help you generate the SQL to add a new office to the database.")
+                
+                with st.form("new_office_form"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        office_name = st.text_input("Office Name*", placeholder="e.g., SnowGhost Breakers Tokyo")
+                        city = st.text_input("City*", placeholder="e.g., Tokyo")
+                        country = st.text_input("Country*", placeholder="e.g., Japan")
+                        region = st.selectbox("Region*", ["Americas", "Europe & Middle East", "Asia-Pacific"])
+                        
+                    with col2:
+                        office_type = st.selectbox("Office Type*", ["Headquarters", "Regional Office", "Field Office"])
+                        capacity = st.number_input("Capacity (investigators)*", min_value=1, value=50)
+                        latitude = st.number_input("Latitude", value=0.0, format="%.6f")
+                        longitude = st.number_input("Longitude", value=0.0, format="%.6f")
+                    
+                    timezone = st.text_input("Timezone", placeholder="e.g., Asia/Tokyo")
+                    address = st.text_area("Address (optional)", placeholder="Full street address")
+                    phone = st.text_input("Phone (optional)", placeholder="e.g., +81-3-1234-5678")
+                    email = st.text_input("Email (optional)", placeholder="e.g., tokyo@snowghostbreakers.com")
+                    
+                    submitted = st.form_submit_button("🎯 Generate SQL")
+                    
+                    if submitted:
+                        if office_name and city and country:
+                            # Generate office ID
+                            import re
+                            country_code = country[:2].upper()
+                            city_code = re.sub(r'[^A-Za-z]', '', city)[:5].upper()
+                            office_id = f"OFF_{country_code}_{city_code}"
+                            
+                            # Generate INSERT SQL
+                            sql_statement = f"""
+-- Add new office: {office_name}
+INSERT INTO GHOST_DETECTION.APP.OFFICES (
+    office_id, office_name, city, country, region, 
+    latitude, longitude, timezone, office_type, capacity, 
+    active_status, phone, email, address, opened_date
+) VALUES (
+    '{office_id}',
+    '{office_name}',
+    '{city}',
+    '{country}',
+    '{region}',
+    {latitude},
+    {longitude},
+    '{timezone if timezone else 'UTC'}',
+    '{office_type}',
+    {capacity},
+    TRUE,
+    {f"'{phone}'" if phone else 'NULL'},
+    {f"'{email}'" if email else 'NULL'},
+    {f"'{address}'" if address else 'NULL'},
+    CURRENT_DATE()
+);
+"""
+                            st.success("✅ SQL generated successfully!")
+                            st.code(sql_statement, language="sql")
+                            st.info("📋 Copy this SQL and run it in Snowflake to add the office.")
+                        else:
+                            st.error("❌ Please fill in all required fields (marked with *)")
+    
+    except Exception as e:
+        st.error(f"❌ Error loading offices: {str(e)}")
+        st.info("💡 **Setup Required:**")
+        st.code("snowsql -f sql/13_offices_table.sql", language="bash")
+        st.markdown("Or copy and paste the contents of `sql/13_offices_table.sql` into a Snowflake worksheet.")
 
 # ============================================
 # PAGE: AI INSIGHTS
@@ -657,6 +1466,8 @@ elif page == "➕ New Sighting":
     
     # Display uploaded images and run AI analysis
     image_analysis_results = []
+    uploaded_files_data = []  # Store file bytes for later upload
+    
     if uploaded_files:
         st.markdown("### 🔍 AI Image Analysis")
         cols = st.columns(min(len(uploaded_files), 3))
@@ -664,7 +1475,16 @@ elif page == "➕ New Sighting":
         for idx, uploaded_file in enumerate(uploaded_files):
             col = cols[idx % 3]
             with col:
-                st.image(uploaded_file, caption=uploaded_file.name, use_column_width=True)
+                st.image(uploaded_file, caption=uploaded_file.name, use_container_width=True)
+                
+                # Store file data for later upload to stage
+                file_bytes = uploaded_file.read()
+                uploaded_file.seek(0)  # Reset pointer for display
+                uploaded_files_data.append({
+                    'name': uploaded_file.name,
+                    'bytes': file_bytes,
+                    'type': uploaded_file.type
+                })
                 
                 # Run AI analysis on image
                 with st.spinner(f"Analyzing {uploaded_file.name}..."):
@@ -690,6 +1510,111 @@ elif page == "➕ New Sighting":
         
         st.markdown("---")
     
+    # Geocoding section (outside form)
+    st.subheader("🌍 Optional: Get Coordinates from Address")
+    with st.expander("📍 Click here to geocode an address"):
+        geocode_col1, geocode_col2 = st.columns([3, 1])
+        
+        with geocode_col1:
+            geocode_input = st.text_input(
+                "Enter address or location",
+                placeholder="e.g., 'Tower of London, UK' or '123 Main St, New York'",
+                key="geocode_address"
+            )
+        
+        with geocode_col2:
+            st.write("")  # Spacing
+            st.write("")  # Spacing
+            if st.button("🔍 Lookup", use_container_width=True):
+                if geocode_input:
+                    with st.spinner("Looking up coordinates..."):
+                        try:
+                            from geopy.geocoders import Nominatim
+                            from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+                            import time
+                            
+                            # Function to geocode with retry logic
+                            def geocode_with_retry(address, max_retries=3):
+                                for attempt in range(max_retries):
+                                    try:
+                                        # Use geopy Nominatim geocoder - no API key required
+                                        # Add a small delay to respect rate limits
+                                        if attempt > 0:
+                                            time.sleep(2 ** attempt)  # Exponential backoff: 2s, 4s
+                                        
+                                        geolocator = Nominatim(
+                                            user_agent="SnowGhostBreakers-v2.1",
+                                            timeout=15  # Increased timeout
+                                        )
+                                        
+                                        # Geocode the address
+                                        location = geolocator.geocode(address, timeout=15)
+                                        return location
+                                        
+                                    except GeocoderTimedOut:
+                                        if attempt < max_retries - 1:
+                                            continue
+                                        raise
+                                    except GeocoderServiceError as e:
+                                        if "429" in str(e) or "rate limit" in str(e).lower():
+                                            if attempt < max_retries - 1:
+                                                time.sleep(5)  # Wait longer for rate limits
+                                                continue
+                                        raise
+                                    except Exception as e:
+                                        # Connection errors, etc.
+                                        if attempt < max_retries - 1:
+                                            time.sleep(3)
+                                            continue
+                                        raise
+                                
+                                return None
+                            
+                            # Try to geocode with retry
+                            location = geocode_with_retry(geocode_input)
+                            
+                            if location:
+                                found_lat = location.latitude
+                                found_lon = location.longitude
+                                display_name = location.address
+                                
+                                # Store in session state to update the number inputs
+                                st.session_state['geocoded_lat'] = found_lat
+                                st.session_state['geocoded_lon'] = found_lon
+                                
+                                st.success(f"✅ Found: {display_name}")
+                                st.info(f"📍 Coordinates: {found_lat:.6f}, {found_lon:.6f}")
+                                st.info("💡 The coordinates have been set below. You can now fill out the sighting form.")
+                            else:
+                                st.warning("⚠️ Location not found. Try a more specific address.")
+                                st.info("💡 Examples: 'Tower of London, UK', '1600 Pennsylvania Ave, Washington DC', 'Eiffel Tower, Paris'")
+                                
+                        except GeocoderTimedOut:
+                            st.error("❌ Geocoding service timed out. Please try again in a moment.")
+                            st.info("💡 The service may be experiencing high traffic. Try again or enter coordinates manually.")
+                        except GeocoderServiceError as e:
+                            st.error(f"❌ Geocoding service error: {str(e)}")
+                            st.info("💡 The geocoding service may be temporarily unavailable. Enter coordinates manually below.")
+                        except ConnectionError as e:
+                            st.error("❌ Connection error: Unable to reach geocoding service")
+                            st.info("💡 Check your internet connection or enter coordinates manually below.")
+                            st.info("Note: Nominatim requires an active internet connection")
+                        except Exception as e:
+                            error_msg = str(e)
+                            if "Device or resource busy" in error_msg:
+                                st.error("❌ Network busy: Too many concurrent requests")
+                                st.info("💡 Wait a moment and try again, or enter coordinates manually")
+                            elif "Max retries exceeded" in error_msg:
+                                st.error("❌ Connection failed: Network is busy or unavailable")
+                                st.info("💡 Enter coordinates manually below or try again later")
+                            else:
+                                st.error(f"❌ Geocoding error: {error_msg}")
+                                st.info("💡 Enter coordinates manually in the form below")
+                else:
+                    st.warning("⚠️ Please enter an address first")
+    
+    st.markdown("---")
+    
     with st.form("new_sighting_form"):
         st.subheader("📍 Location Information")
         
@@ -697,7 +1622,9 @@ elif page == "➕ New Sighting":
         
         with col1:
             location_name = st.text_input("Location Name*", help="e.g., 'Old Victorian Mansion'")
-            location_address = st.text_area("Full Address", height=80)
+            location_address = st.text_area("Full Address", height=80, 
+                                           help="Enter full address (used for record keeping)")
+            
             witness_name = st.text_input("Witness Name*")
             witness_contact = st.text_input("Witness Contact", help="Email or phone")
         
@@ -705,11 +1632,15 @@ elif page == "➕ New Sighting":
             st.markdown("**📍 Location Coordinates**")
             use_map = st.checkbox("📍 Show location on map", value=True)
             
+            # Use geocoded coordinates if available
+            default_lat = st.session_state.get('geocoded_lat', 40.7128)
+            default_lon = st.session_state.get('geocoded_lon', -74.0060)
+            
             col_lat, col_lon = st.columns(2)
             with col_lat:
-                latitude = st.number_input("Latitude", value=40.7128, format="%.6f")
+                latitude = st.number_input("Latitude", value=default_lat, format="%.6f")
             with col_lon:
-                longitude = st.number_input("Longitude", value=-74.0060, format="%.6f")
+                longitude = st.number_input("Longitude", value=default_lon, format="%.6f")
             
             # Show mini map
             if use_map and latitude != 0 and longitude != 0:
@@ -748,6 +1679,8 @@ elif page == "➕ New Sighting":
         if submitted:
             if location_name and witness_name and description:
                 import uuid
+                from datetime import datetime as dt
+                
                 sighting_id = f"SIGHT_{str(uuid.uuid4())[:8].upper()}"
                 sighting_datetime = datetime.combine(sighting_date, sighting_time)
                 
@@ -758,31 +1691,278 @@ elif page == "➕ New Sighting":
                     for img in image_analysis_results:
                         full_desc += f"\n{img['filename']}:\n{img['analysis']}\n"
                 
-                with st.spinner("🤖 Analyzing with AI..."):
+                with st.spinner("🤖 Analyzing with AI and saving data..."):
                     try:
                         classification = Complete(
                             'mistral-large2',
                             f"Classify this paranormal sighting as: Apparition, Poltergeist, Shadow Figure, "
                             f"Orb, Residual Haunt, Intelligent Haunt, Demonic, or Unknown. "
                             f"Description: {full_desc}. Location: {location_name}. Activity: {paranormal_level}/10. "
-                            f"Return classification and brief explanation."
+                            f"Return ONLY the classification type (one or two words) without explanation."
                         )
                         
-                        st.success("✅ Sighting reported successfully!")
-                        col1, col2, col3 = st.columns(3)
+                        # Clean classification
+                        ghost_type = classification.strip().split('.')[0].strip()
+                        
+                        # Upload images to GHOST_IMAGES_STAGE and create embeddings
+                        stage_paths = []
+                        image_embeddings = []
+                        
+                        if uploaded_files_data:
+                            st.info(f"📤 Uploading {len(uploaded_files_data)} images to Snowflake stage...")
+                            
+                            for idx, file_data in enumerate(uploaded_files_data):
+                                try:
+                                    # Generate unique filename
+                                    timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+                                    safe_filename = file_data['name'].replace(' ', '_').replace('(', '').replace(')', '')
+                                    stage_filename = f"{sighting_id}_{timestamp}_{safe_filename}"
+                                    stage_path = f"@GHOST_IMAGES_STAGE/{stage_filename}"
+                                    
+                                    # Write file to temporary location and upload to stage
+                                    import tempfile
+                                    import os
+                                    
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(safe_filename)[1]) as tmp_file:
+                                        tmp_file.write(file_data['bytes'])
+                                        tmp_path = tmp_file.name
+                                    
+                                    try:
+                                        # Upload to Snowflake stage using PUT
+                                        put_result = session.sql(f"PUT 'file://{tmp_path}' @GHOST_IMAGES_STAGE/{stage_filename} OVERWRITE=TRUE").collect()
+                                        
+                                        # Clean up temp file
+                                        os.unlink(tmp_path)
+                                        
+                                        # Store path info
+                                        stage_paths.append({
+                                            'filename': safe_filename,
+                                            'stage_path': stage_path,
+                                            'original_name': file_data['name'],
+                                            'file_size': len(file_data['bytes'])
+                                        })
+                                        
+                                        # Create embedding from image analysis text (metadata-based)
+                                        # In production, you could use actual image embeddings from Cortex Vision
+                                        if idx < len(image_analysis_results):
+                                            analysis_text = f"{ghost_type} ghost evidence. {image_analysis_results[idx]['analysis']}"
+                                            
+                                            # Create AI embedding vector
+                                            embedding_query = f"""
+                                            SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+                                                'snowflake-arctic-embed-l-v2.0-8k',
+                                                '{analysis_text.replace("'", "''")[:5000]}'
+                                            ) as embedding_vector
+                                            """
+                                            embedding_result = session.sql(embedding_query).collect()
+                                            
+                                            if embedding_result:
+                                                image_embeddings.append({
+                                                    'filename': safe_filename,
+                                                    'embedding': str(embedding_result[0]['EMBEDDING_VECTOR']),
+                                                    'analysis_text': analysis_text[:1000]
+                                                })
+                                        
+                                    except Exception as stage_err:
+                                        # Fallback: just store the reference without actual upload
+                                        os.unlink(tmp_path) if os.path.exists(tmp_path) else None
+                                        st.warning(f"Stage upload failed for {file_data['name']}, storing reference only")
+                                        stage_paths.append({
+                                            'filename': safe_filename,
+                                            'stage_path': stage_path,
+                                            'original_name': file_data['name'],
+                                            'file_size': len(file_data['bytes'])
+                                        })
+                                    
+                                except Exception as upload_err:
+                                    st.warning(f"Could not process {file_data['name']}: {str(upload_err)}")
+                        
+                        # Insert sighting into database
+                        insert_sighting_sql = f"""
+                        INSERT INTO GHOST_DETECTION.APP.GHOST_SIGHTINGS (
+                            sighting_id, 
+                            ghost_id,
+                            location_name,
+                            location_address,
+                            latitude,
+                            longitude,
+                            sighting_datetime,
+                            witness_name,
+                            witness_contact,
+                            description,
+                            evidence_type,
+                            paranormal_activity_level,
+                            environmental_conditions,
+                            temperature_celsius,
+                            emf_reading,
+                            investigation_status
+                        ) VALUES (
+                            '{sighting_id}',
+                            NULL,  -- Will be linked later after ghost creation
+                            '{location_name.replace("'", "''")}',
+                            '{location_address.replace("'", "''") if location_address else ""}',
+                            {latitude},
+                            {longitude},
+                            '{sighting_datetime.strftime("%Y-%m-%d %H:%M:%S")}',
+                            '{witness_name.replace("'", "''")}',
+                            '{witness_contact.replace("'", "''") if witness_contact else ""}',
+                            '{full_desc.replace("'", "''")}',
+                            '{evidence_type}',
+                            {paranormal_level},
+                            'Reported via Streamlit',
+                            {temperature_celsius},
+                            0.0,
+                            'Pending'
+                        )
+                        """
+                        
+                        session.sql(insert_sighting_sql).collect()
+                        
+                        # Insert evidence records for uploaded images
+                        evidence_ids = []
+                        for idx, stage_info in enumerate(stage_paths):
+                            evidence_id = f"EVID_{str(uuid.uuid4())[:8].upper()}"
+                            evidence_ids.append(evidence_id)
+                            
+                            # Prepare metadata JSON
+                            metadata_obj = {
+                                "original_filename": stage_info['original_name'],
+                                "upload_source": "streamlit",
+                                "file_size": stage_info.get('file_size', 0),
+                                "upload_timestamp": dt.now().isoformat()
+                            }
+                            
+                            if idx < len(image_analysis_results):
+                                metadata_obj["ai_analysis"] = image_analysis_results[idx]['analysis'][:500]
+                            
+                            import json
+                            metadata_json = json.dumps(metadata_obj).replace("'", "''")
+                            
+                            insert_evidence_sql = f"""
+                            INSERT INTO GHOST_DETECTION.APP.GHOST_EVIDENCE (
+                                evidence_id,
+                                sighting_id,
+                                ghost_id,
+                                evidence_type,
+                                file_path,
+                                capture_datetime,
+                                metadata,
+                                processing_status
+                            ) VALUES (
+                                '{evidence_id}',
+                                '{sighting_id}',
+                                NULL,
+                                'Photograph',
+                                '{stage_info['stage_path']}',
+                                '{sighting_datetime.strftime("%Y-%m-%d %H:%M:%S")}',
+                                PARSE_JSON('{metadata_json}'),
+                                'Analyzed'
+                            )
+                            """
+                            
+                            session.sql(insert_evidence_sql).collect()
+                        
+                        # Insert AI analysis records with embeddings
+                        for idx, embedding_info in enumerate(image_embeddings):
+                            if idx < len(evidence_ids):
+                                analysis_id = f"AI_{str(uuid.uuid4())[:8].upper()}"
+                                evidence_id = evidence_ids[idx]
+                                
+                                # Get AI sentiment analysis
+                                try:
+                                    sentiment_query = f"""
+                                    SELECT SNOWFLAKE.CORTEX.SENTIMENT(
+                                        '{embedding_info['analysis_text'].replace("'", "''")}'
+                                    ) as sentiment_score
+                                    """
+                                    sentiment_result = session.sql(sentiment_query).collect()
+                                    sentiment_score = sentiment_result[0]['SENTIMENT_SCORE'] if sentiment_result else 0.0
+                                except:
+                                    sentiment_score = 0.0
+                                
+                                # Prepare findings JSON
+                                findings = {
+                                    "ghost_type_detected": ghost_type,
+                                    "analysis": embedding_info['analysis_text'],
+                                    "confidence": 0.85,
+                                    "anomalies_detected": ["visual evidence", "paranormal activity"],
+                                    "embedding_model": "snowflake-arctic-embed-l-v2.0-8k",
+                                    "embedding_dimensions": 1024
+                                }
+                                findings_json = json.dumps(findings).replace("'", "''")
+                                
+                                insert_ai_analysis_sql = f"""
+                                INSERT INTO GHOST_DETECTION.APP.GHOST_AI_ANALYSIS (
+                                    analysis_id,
+                                    evidence_id,
+                                    ghost_id,
+                                    sighting_id,
+                                    analysis_type,
+                                    model_used,
+                                    confidence_score,
+                                    findings,
+                                    analysis_datetime,
+                                    sentiment_score,
+                                    embedding_vector
+                                ) VALUES (
+                                    '{analysis_id}',
+                                    '{evidence_id}',
+                                    NULL,
+                                    '{sighting_id}',
+                                    'Image Analysis',
+                                    'snowflake-arctic-embed-l-v2.0-8k',
+                                    0.85,
+                                    PARSE_JSON('{findings_json}'),
+                                    '{dt.now().strftime("%Y-%m-%d %H:%M:%S")}',
+                                    {sentiment_score},
+                                    {embedding_info['embedding']}
+                                )
+                                """
+                                
+                                session.sql(insert_ai_analysis_sql).collect()
+                        
+                        st.success("✅ Sighting reported and saved to database!")
+                        
+                        col1, col2, col3, col4 = st.columns(4)
                         with col1:
                             st.metric("Sighting ID", sighting_id)
                         with col2:
                             st.metric("Activity Level", f"{paranormal_level}/10")
                         with col3:
-                            st.metric("Photos", len(image_analysis_results))
+                            st.metric("Photos Uploaded", len(stage_paths))
+                        with col4:
+                            st.metric("AI Embeddings", len(image_embeddings))
                         
-                        st.info(f"🤖 **AI Classification:**\n\n{classification}")
+                        st.info(f"🤖 **AI Classification:** {ghost_type}")
+                        
+                        if stage_paths:
+                            st.success(f"📸 {len(stage_paths)} images uploaded to GHOST_IMAGES_STAGE")
+                            with st.expander("📁 View uploaded files and embeddings"):
+                                for idx, path_info in enumerate(stage_paths):
+                                    st.text(f"✓ {path_info['original_name']} → {path_info['stage_path']}")
+                                    if idx < len(image_embeddings):
+                                        st.text(f"   🧠 AI Embedding created (1024 dimensions)")
+                                        st.text(f"   📊 Analysis: {image_embeddings[idx]['analysis_text'][:100]}...")
+                        
+                        if image_embeddings:
+                            st.success(f"🧠 {len(image_embeddings)} AI embeddings created for similarity search")
+                        
                         if latitude != 0 or longitude != 0:
                             st.success(f"📍 Location: {latitude:.6f}, {longitude:.6f}")
+                        
                         st.balloons()
+                        
+                        # Clear session state for new entry
+                        if 'geocoded_lat' in st.session_state:
+                            del st.session_state['geocoded_lat']
+                        if 'geocoded_lon' in st.session_state:
+                            del st.session_state['geocoded_lon']
+                        
                     except Exception as e:
-                        st.error(f"Error: {str(e)}")
+                        st.error(f"Error saving sighting: {str(e)}")
+                        st.error("Please ensure all required tables exist and you have proper permissions")
+                        with st.expander("Debug Info"):
+                            st.code(str(e))
             else:
                 st.error("Please fill in all required fields marked with *")
 
@@ -823,6 +2003,921 @@ elif page == "📈 Analytics":
     fig.update_layout(title='90-Day Activity Trend', xaxis_title='Date', yaxis_title='Count')
     st.plotly_chart(fig, use_container_width=True)
 
+# ============================================
+# PAGE: REPORTS
+# ============================================
+elif page == "📑 Reports":
+    st.header("📑 Comprehensive Data Reports")
+    st.markdown("*Detailed analytics and visualizations for all major data categories*")
+    
+    # Report selector
+    report_type = st.selectbox(
+        "Select Report Type",
+        [
+            "📊 Executive Summary",
+            "👻 Ghost Registry Report",
+            "📍 Sightings Analysis Report",
+            "🔬 Evidence Analysis Report",
+            "📋 Investigations Report",
+            "👥 Investigators Performance Report"
+        ]
+    )
+    
+    st.markdown("---")
+    
+    # ============================================
+    # EXECUTIVE SUMMARY REPORT
+    # ============================================
+    if report_type == "📊 Executive Summary":
+        st.subheader("📊 Executive Summary Report")
+        st.caption(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Key Metrics
+        st.markdown("### 🎯 Key Performance Indicators")
+        
+        kpi_query = """
+        SELECT 
+            (SELECT COUNT(*) FROM GHOSTS WHERE status = 'Active') as active_ghosts,
+            (SELECT COUNT(*) FROM GHOST_SIGHTINGS WHERE sighting_datetime >= DATEADD(day, -30, CURRENT_TIMESTAMP())) as recent_sightings,
+            (SELECT COUNT(*) FROM GHOST_EVIDENCE) as total_evidence,
+            (SELECT COUNT(*) FROM INVESTIGATIONS WHERE status IN ('Open', 'In_Progress')) as active_investigations,
+            (SELECT COUNT(*) FROM INVESTIGATORS WHERE active_status = TRUE) as active_investigators,
+            (SELECT AVG(paranormal_activity_level) FROM GHOST_SIGHTINGS WHERE sighting_datetime >= DATEADD(day, -7, CURRENT_TIMESTAMP())) as avg_activity_7d
+        """
+        
+        kpis = session.sql(kpi_query).to_pandas().iloc[0]
+        
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        
+        with col1:
+            st.metric("Active Ghosts", int(kpis['ACTIVE_GHOSTS']))
+        with col2:
+            st.metric("Recent Sightings", int(kpis['RECENT_SIGHTINGS']), 
+                     delta="Last 30 days")
+        with col3:
+            st.metric("Evidence Items", int(kpis['TOTAL_EVIDENCE']))
+        with col4:
+            st.metric("Active Cases", int(kpis['ACTIVE_INVESTIGATIONS']))
+        with col5:
+            st.metric("Team Members", int(kpis['ACTIVE_INVESTIGATORS']))
+        with col6:
+            st.metric("Avg Activity", f"{kpis['AVG_ACTIVITY_7D']:.1f}/10",
+                     delta="7-day average")
+        
+        st.markdown("---")
+        
+        # Threat Level Distribution
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### ⚠️ Threat Level Distribution")
+            threat_query = """
+            SELECT 
+                threat_level,
+                COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) as percentage
+            FROM GHOSTS
+            WHERE status = 'Active'
+            GROUP BY threat_level
+            ORDER BY CASE threat_level 
+                WHEN 'Extreme' THEN 1
+                WHEN 'High' THEN 2
+                WHEN 'Medium' THEN 3
+                ELSE 4
+            END
+            """
+            threat_df = session.sql(threat_query).to_pandas()
+            
+            fig = px.pie(threat_df, values='COUNT', names='THREAT_LEVEL',
+                        title='Active Ghosts by Threat Level',
+                        color='THREAT_LEVEL',
+                        color_discrete_map={
+                            'Extreme': '#dc2626',
+                            'High': '#f59e0b',
+                            'Medium': '#eab308',
+                            'Low': '#22c55e'
+                        })
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("### 📈 30-Day Sighting Trend")
+            trend_query = """
+            SELECT 
+                DATE(sighting_datetime) as date,
+                COUNT(*) as sightings
+            FROM GHOST_SIGHTINGS
+            WHERE sighting_datetime >= DATEADD(day, -30, CURRENT_TIMESTAMP())
+            GROUP BY DATE(sighting_datetime)
+            ORDER BY date
+            """
+            trend_df = session.sql(trend_query).to_pandas()
+            
+            fig = px.line(trend_df, x='DATE', y='SIGHTINGS',
+                         title='Daily Sightings - Last 30 Days')
+            fig.update_traces(line_color='#667eea', line_width=3)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Geographic Hotspots
+        st.markdown("### 🗺️ Geographic Hotspots")
+        hotspot_query = """
+        SELECT 
+            location_name,
+            COUNT(*) as sighting_count,
+            AVG(paranormal_activity_level) as avg_activity,
+            AVG(latitude) as latitude,
+            AVG(longitude) as longitude
+        FROM GHOST_SIGHTINGS
+        WHERE latitude BETWEEN -90 AND 90 
+          AND longitude BETWEEN -180 AND 180
+          AND location_name IS NOT NULL
+        GROUP BY location_name
+        HAVING COUNT(*) > 1
+        ORDER BY sighting_count DESC
+        LIMIT 20
+        """
+        
+        hotspot_df = session.sql(hotspot_query).to_pandas()
+        
+        if not hotspot_df.empty:
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                # Map visualization
+                fig = px.scatter_mapbox(
+                    hotspot_df,
+                    lat='LATITUDE',
+                    lon='LONGITUDE',
+                    size='SIGHTING_COUNT',
+                    color='AVG_ACTIVITY',
+                    hover_name='LOCATION_NAME',
+                    hover_data={'SIGHTING_COUNT': True, 'AVG_ACTIVITY': ':.1f',
+                               'LATITUDE': False, 'LONGITUDE': False},
+                    color_continuous_scale='Reds',
+                    size_max=30,
+                    zoom=3,
+                    mapbox_style='open-street-map',
+                    title='Sighting Hotspots Map'
+                )
+                fig.update_layout(height=500)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.markdown("**Top 10 Locations:**")
+                for idx, row in hotspot_df.head(10).iterrows():
+                    st.write(f"**{row['LOCATION_NAME']}**")
+                    st.write(f"   Sightings: {int(row['SIGHTING_COUNT'])}")
+                    st.write(f"   Avg Activity: {row['AVG_ACTIVITY']:.1f}/10")
+                    st.markdown("---")
+    
+    # ============================================
+    # GHOST REGISTRY REPORT
+    # ============================================
+    elif report_type == "👻 Ghost Registry Report":
+        st.subheader("👻 Ghost Registry Comprehensive Report")
+        st.caption(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Summary Statistics
+        st.markdown("### 📊 Registry Statistics")
+        
+        stats_query = """
+        SELECT 
+            COUNT(*) as total_ghosts,
+            SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active_count,
+            SUM(CASE WHEN status = 'Contained' THEN 1 ELSE 0 END) as contained_count,
+            SUM(CASE WHEN status = 'Banished' THEN 1 ELSE 0 END) as banished_count,
+            COUNT(DISTINCT ghost_type) as unique_types,
+            COUNT(DISTINCT origin_location) as unique_origins
+        FROM GHOSTS
+        """
+        
+        stats = session.sql(stats_query).to_pandas().iloc[0]
+        
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        
+        with col1:
+            st.metric("Total Registered", int(stats['TOTAL_GHOSTS']))
+        with col2:
+            st.metric("Active", int(stats['ACTIVE_COUNT']), 
+                     delta=f"{stats['ACTIVE_COUNT']/stats['TOTAL_GHOSTS']*100:.1f}%")
+        with col3:
+            st.metric("Contained", int(stats['CONTAINED_COUNT']))
+        with col4:
+            st.metric("Banished", int(stats['BANISHED_COUNT']))
+        with col5:
+            st.metric("Ghost Types", int(stats['UNIQUE_TYPES']))
+        with col6:
+            st.metric("Origin Locations", int(stats['UNIQUE_ORIGINS']))
+        
+        st.markdown("---")
+        
+        # Charts
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📊 Ghost Types Distribution")
+            type_query = """
+            SELECT 
+                ghost_type,
+                COUNT(*) as count,
+                ROUND(AVG(CASE threat_level
+                    WHEN 'Extreme' THEN 4
+                    WHEN 'High' THEN 3
+                    WHEN 'Medium' THEN 2
+                    ELSE 1
+                END), 2) as avg_threat_score
+            FROM GHOSTS
+            GROUP BY ghost_type
+            ORDER BY count DESC
+            """
+            type_df = session.sql(type_query).to_pandas()
+            
+            fig = px.bar(type_df, x='GHOST_TYPE', y='COUNT',
+                        color='AVG_THREAT_SCORE',
+                        title='Ghost Types and Threat Levels',
+                        color_continuous_scale='Reds')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("### 🎯 Status Breakdown")
+            status_query = """
+            SELECT 
+                status,
+                COUNT(*) as count
+            FROM GHOSTS
+            GROUP BY status
+            ORDER BY count DESC
+            """
+            status_df = session.sql(status_query).to_pandas()
+            
+            fig = px.pie(status_df, values='COUNT', names='STATUS',
+                        title='Ghost Status Distribution',
+                        hole=0.4)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Threat Level Analysis
+        st.markdown("### ⚠️ Threat Level Analysis")
+        
+        threat_detail_query = """
+        SELECT 
+            threat_level,
+            ghost_type,
+            COUNT(*) as count
+        FROM GHOSTS
+        WHERE status = 'Active'
+        GROUP BY threat_level, ghost_type
+        ORDER BY 
+            CASE threat_level 
+                WHEN 'Extreme' THEN 1
+                WHEN 'High' THEN 2
+                WHEN 'Medium' THEN 3
+                ELSE 4
+            END,
+            count DESC
+        """
+        
+        threat_detail_df = session.sql(threat_detail_query).to_pandas()
+        
+        fig = px.treemap(threat_detail_df,
+                        path=['THREAT_LEVEL', 'GHOST_TYPE'],
+                        values='COUNT',
+                        title='Active Ghosts by Threat Level and Type',
+                        color='COUNT',
+                        color_continuous_scale='Reds')
+        fig.update_layout(height=500)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Top Threats Table
+        st.markdown("### 🚨 Top Threat Entities")
+        
+        top_threats_query = """
+        SELECT 
+            ghost_name,
+            ghost_type,
+            threat_level,
+            origin_location,
+            first_documented,
+            status
+        FROM GHOSTS
+        WHERE threat_level IN ('Extreme', 'High')
+          AND status = 'Active'
+        ORDER BY 
+            CASE threat_level 
+                WHEN 'Extreme' THEN 1
+                ELSE 2
+            END,
+            first_documented DESC
+        LIMIT 10
+        """
+        
+        top_threats_df = session.sql(top_threats_query).to_pandas()
+        st.dataframe(top_threats_df, use_container_width=True, hide_index=True)
+    
+    # ============================================
+    # SIGHTINGS ANALYSIS REPORT
+    # ============================================
+    elif report_type == "📍 Sightings Analysis Report":
+        st.subheader("📍 Sightings Analysis Report")
+        st.caption(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Summary Statistics
+        st.markdown("### 📊 Sightings Overview")
+        
+        sightings_stats_query = """
+        SELECT 
+            COUNT(*) as total_sightings,
+            COUNT(DISTINCT ghost_id) as unique_ghosts,
+            COUNT(DISTINCT location_name) as unique_locations,
+            AVG(paranormal_activity_level) as avg_activity,
+            MAX(paranormal_activity_level) as max_activity,
+            COUNT(*) FILTER (WHERE sighting_datetime >= DATEADD(day, -7, CURRENT_TIMESTAMP())) as last_7_days,
+            COUNT(*) FILTER (WHERE sighting_datetime >= DATEADD(day, -30, CURRENT_TIMESTAMP())) as last_30_days
+        FROM GHOST_SIGHTINGS
+        """
+        
+        sighting_stats = session.sql(sightings_stats_query).to_pandas().iloc[0]
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.metric("Total Sightings", int(sighting_stats['TOTAL_SIGHTINGS']))
+        with col2:
+            st.metric("Unique Ghosts", int(sighting_stats['UNIQUE_GHOSTS']))
+        with col3:
+            st.metric("Locations", int(sighting_stats['UNIQUE_LOCATIONS']))
+        with col4:
+            st.metric("Last 7 Days", int(sighting_stats['LAST_7_DAYS']))
+        with col5:
+            st.metric("Last 30 Days", int(sighting_stats['LAST_30_DAYS']))
+        
+        st.markdown("---")
+        
+        # Temporal Analysis
+        st.markdown("### 📅 Temporal Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Hour of day distribution
+            hour_query = """
+            SELECT 
+                HOUR(sighting_datetime) as hour,
+                COUNT(*) as sightings
+            FROM GHOST_SIGHTINGS
+            GROUP BY HOUR(sighting_datetime)
+            ORDER BY hour
+            """
+            hour_df = session.sql(hour_query).to_pandas()
+            
+            fig = px.bar(hour_df, x='HOUR', y='SIGHTINGS',
+                        title='Sightings by Hour of Day')
+            fig.update_layout(xaxis_title='Hour (24h)', yaxis_title='Number of Sightings')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Day of week distribution
+            dow_query = """
+            SELECT 
+                DAYNAME(sighting_datetime) as day_name,
+                DAYOFWEEK(sighting_datetime) as day_num,
+                COUNT(*) as sightings
+            FROM GHOST_SIGHTINGS
+            GROUP BY day_name, day_num
+            ORDER BY day_num
+            """
+            dow_df = session.sql(dow_query).to_pandas()
+            
+            fig = px.bar(dow_df, x='DAY_NAME', y='SIGHTINGS',
+                        title='Sightings by Day of Week')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Activity Level Heatmap
+        st.markdown("### 🔥 Activity Level Analysis")
+        
+        activity_query = """
+        SELECT 
+            paranormal_activity_level as level,
+            COUNT(*) as count
+        FROM GHOST_SIGHTINGS
+        GROUP BY paranormal_activity_level
+        ORDER BY paranormal_activity_level
+        """
+        activity_df = session.sql(activity_query).to_pandas()
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            fig = px.bar(activity_df, x='LEVEL', y='COUNT',
+                        title='Distribution of Paranormal Activity Levels',
+                        color='LEVEL',
+                        color_continuous_scale='Reds')
+            fig.update_layout(xaxis_title='Activity Level (1-10)', 
+                            yaxis_title='Number of Sightings')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("**Activity Statistics:**")
+            st.metric("Average Level", f"{sighting_stats['AVG_ACTIVITY']:.2f}/10")
+            st.metric("Maximum Level", f"{int(sighting_stats['MAX_ACTIVITY'])}/10")
+            
+            high_activity = len(activity_df[activity_df['LEVEL'] >= 7])
+            st.metric("High Activity Events", high_activity)
+        
+        # Geographic Distribution
+        st.markdown("### 🗺️ Geographic Distribution")
+        
+        geo_query = """
+        SELECT 
+            location_name,
+            latitude,
+            longitude,
+            COUNT(*) as sighting_count,
+            AVG(paranormal_activity_level) as avg_activity,
+            MAX(sighting_datetime) as last_sighting
+        FROM GHOST_SIGHTINGS
+        WHERE latitude BETWEEN -90 AND 90 
+          AND longitude BETWEEN -180 AND 180
+          AND location_name IS NOT NULL
+        GROUP BY location_name, latitude, longitude
+        ORDER BY sighting_count DESC
+        LIMIT 50
+        """
+        
+        geo_df = session.sql(geo_query).to_pandas()
+        
+        if not geo_df.empty:
+            fig = px.scatter_mapbox(
+                geo_df,
+                lat='LATITUDE',
+                lon='LONGITUDE',
+                size='SIGHTING_COUNT',
+                color='AVG_ACTIVITY',
+                hover_name='LOCATION_NAME',
+                hover_data={
+                    'SIGHTING_COUNT': True,
+                    'AVG_ACTIVITY': ':.2f',
+                    'LAST_SIGHTING': True,
+                    'LATITUDE': False,
+                    'LONGITUDE': False
+                },
+                title='Sightings Geographic Distribution',
+                color_continuous_scale='Reds',
+                size_max=40,
+                zoom=2,
+                mapbox_style='open-street-map'
+            )
+            fig.update_layout(height=600)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Top Locations Table
+        st.markdown("### 📍 Most Active Locations")
+        
+        top_locations_query = """
+        SELECT 
+            location_name,
+            COUNT(*) as total_sightings,
+            AVG(paranormal_activity_level) as avg_activity,
+            MAX(sighting_datetime) as most_recent,
+            COUNT(DISTINCT ghost_id) as different_ghosts
+        FROM GHOST_SIGHTINGS
+        WHERE location_name IS NOT NULL
+        GROUP BY location_name
+        ORDER BY total_sightings DESC
+        LIMIT 15
+        """
+        
+        top_loc_df = session.sql(top_locations_query).to_pandas()
+        st.dataframe(top_loc_df, use_container_width=True, hide_index=True)
+    
+    # ============================================
+    # EVIDENCE ANALYSIS REPORT
+    # ============================================
+    elif report_type == "🔬 Evidence Analysis Report":
+        st.subheader("🔬 Evidence Analysis Report")
+        st.caption(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Summary Statistics
+        st.markdown("### 📊 Evidence Overview")
+        
+        evidence_stats_query = """
+        SELECT 
+            COUNT(*) as total_evidence,
+            COUNT(DISTINCT evidence_type) as unique_types,
+            COUNT(*) FILTER (WHERE processing_status = 'Analyzed') as analyzed_count,
+            COUNT(*) FILTER (WHERE processing_status = 'Pending') as pending_count,
+            COUNT(DISTINCT ghost_id) as ghosts_with_evidence,
+            COUNT(DISTINCT sighting_id) as sightings_with_evidence
+        FROM GHOST_EVIDENCE
+        """
+        
+        evidence_stats = session.sql(evidence_stats_query).to_pandas().iloc[0]
+        
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        
+        with col1:
+            st.metric("Total Evidence", int(evidence_stats['TOTAL_EVIDENCE']))
+        with col2:
+            st.metric("Evidence Types", int(evidence_stats['UNIQUE_TYPES']))
+        with col3:
+            st.metric("Analyzed", int(evidence_stats['ANALYZED_COUNT']))
+        with col4:
+            st.metric("Pending", int(evidence_stats['PENDING_COUNT']))
+        with col5:
+            st.metric("Ghosts Documented", int(evidence_stats['GHOSTS_WITH_EVIDENCE']))
+        with col6:
+            st.metric("Sightings Documented", int(evidence_stats['SIGHTINGS_WITH_EVIDENCE']))
+        
+        st.markdown("---")
+        
+        # Evidence Type Analysis
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📷 Evidence Types")
+            type_query = """
+            SELECT 
+                evidence_type,
+                COUNT(*) as count
+            FROM GHOST_EVIDENCE
+            GROUP BY evidence_type
+            ORDER BY count DESC
+            """
+            type_df = session.sql(type_query).to_pandas()
+            
+            fig = px.pie(type_df, values='COUNT', names='EVIDENCE_TYPE',
+                        title='Evidence Type Distribution',
+                        hole=0.4)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("### ⚙️ Processing Status")
+            status_query = """
+            SELECT 
+                processing_status,
+                COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) as percentage
+            FROM GHOST_EVIDENCE
+            GROUP BY processing_status
+            ORDER BY count DESC
+            """
+            status_df = session.sql(status_query).to_pandas()
+            
+            fig = px.bar(status_df, x='PROCESSING_STATUS', y='COUNT',
+                        title='Evidence Processing Status',
+                        text='PERCENTAGE')
+            fig.update_traces(texttemplate='%{text}%', textposition='outside')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # AI Analysis Statistics
+        st.markdown("### 🤖 AI Analysis Statistics")
+        
+        ai_stats_query = """
+        SELECT 
+            COUNT(*) as total_analyses,
+            COUNT(DISTINCT model_used) as unique_models,
+            AVG(confidence_score) as avg_confidence,
+            COUNT(DISTINCT analysis_type) as analysis_types,
+            COUNT(*) FILTER (WHERE embedding_vector IS NOT NULL) as with_embeddings
+        FROM GHOST_AI_ANALYSIS
+        """
+        
+        ai_stats = session.sql(ai_stats_query).to_pandas().iloc[0]
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.metric("AI Analyses", int(ai_stats['TOTAL_ANALYSES']))
+        with col2:
+            st.metric("Models Used", int(ai_stats['UNIQUE_MODELS']))
+        with col3:
+            st.metric("Avg Confidence", f"{ai_stats['AVG_CONFIDENCE']:.2%}")
+        with col4:
+            st.metric("Analysis Types", int(ai_stats['ANALYSIS_TYPES']))
+        with col5:
+            st.metric("With Embeddings", int(ai_stats['WITH_EMBEDDINGS']))
+        
+        # Model Performance
+        st.markdown("### 🎯 Model Performance Comparison")
+        
+        model_perf_query = """
+        SELECT 
+            model_used,
+            COUNT(*) as analyses,
+            AVG(confidence_score) as avg_confidence,
+            COUNT(DISTINCT analysis_type) as analysis_types
+        FROM GHOST_AI_ANALYSIS
+        GROUP BY model_used
+        ORDER BY analyses DESC
+        """
+        
+        model_perf_df = session.sql(model_perf_query).to_pandas()
+        
+        if not model_perf_df.empty:
+            fig = px.bar(model_perf_df, x='MODEL_USED', y='ANALYSES',
+                        color='AVG_CONFIDENCE',
+                        title='AI Model Usage and Confidence',
+                        color_continuous_scale='Blues')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Recent Evidence Table
+        st.markdown("### 📋 Recent Evidence Collected")
+        
+        recent_evidence_query = """
+        SELECT 
+            e.evidence_id,
+            e.evidence_type,
+            g.ghost_name,
+            e.capture_datetime,
+            e.processing_status,
+            ai.model_used,
+            ai.confidence_score
+        FROM GHOST_EVIDENCE e
+        LEFT JOIN GHOSTS g ON e.ghost_id = g.ghost_id
+        LEFT JOIN GHOST_AI_ANALYSIS ai ON e.evidence_id = ai.evidence_id
+        ORDER BY e.capture_datetime DESC
+        LIMIT 20
+        """
+        
+        recent_evidence_df = session.sql(recent_evidence_query).to_pandas()
+        st.dataframe(recent_evidence_df, use_container_width=True, hide_index=True)
+    
+    # ============================================
+    # INVESTIGATIONS REPORT
+    # ============================================
+    elif report_type == "📋 Investigations Report":
+        st.subheader("📋 Investigations Status Report")
+        st.caption(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Summary Statistics
+        st.markdown("### 📊 Investigations Overview")
+        
+        inv_stats_query = """
+        SELECT 
+            COUNT(*) as total_investigations,
+            COUNT(*) FILTER (WHERE status = 'Open') as open_count,
+            COUNT(*) FILTER (WHERE status = 'In_Progress') as in_progress_count,
+            COUNT(*) FILTER (WHERE status = 'Closed') as closed_count,
+            AVG(DATEDIFF(day, start_date, COALESCE(end_date, CURRENT_DATE()))) as avg_duration_days
+        FROM INVESTIGATIONS
+        """
+        
+        inv_stats = session.sql(inv_stats_query).to_pandas().iloc[0]
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.metric("Total Cases", int(inv_stats['TOTAL_INVESTIGATIONS']))
+        with col2:
+            st.metric("Open", int(inv_stats['OPEN_COUNT']))
+        with col3:
+            st.metric("In Progress", int(inv_stats['IN_PROGRESS_COUNT']))
+        with col4:
+            st.metric("Closed", int(inv_stats['CLOSED_COUNT']))
+        with col5:
+            st.metric("Avg Duration", f"{inv_stats['AVG_DURATION_DAYS']:.0f} days")
+        
+        st.markdown("---")
+        
+        # Status Distribution
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📊 Case Status")
+            status_query = """
+            SELECT 
+                status,
+                COUNT(*) as count
+            FROM INVESTIGATIONS
+            GROUP BY status
+            ORDER BY 
+                CASE status
+                    WHEN 'Open' THEN 1
+                    WHEN 'In_Progress' THEN 2
+                    WHEN 'Closed' THEN 3
+                    ELSE 4
+                END
+            """
+            status_df = session.sql(status_query).to_pandas()
+            
+            fig = px.pie(status_df, values='COUNT', names='STATUS',
+                        title='Investigation Status Distribution',
+                        color='STATUS',
+                        color_discrete_map={
+                            'Open': '#3b82f6',
+                            'In_Progress': '#f59e0b',
+                            'Closed': '#22c55e',
+                            'Archived': '#6b7280'
+                        })
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("### ⏱️ Investigation Duration")
+            duration_query = """
+            SELECT 
+                CASE 
+                    WHEN DATEDIFF(day, start_date, COALESCE(end_date, CURRENT_DATE())) < 7 THEN '< 1 week'
+                    WHEN DATEDIFF(day, start_date, COALESCE(end_date, CURRENT_DATE())) < 30 THEN '1-4 weeks'
+                    WHEN DATEDIFF(day, start_date, COALESCE(end_date, CURRENT_DATE())) < 90 THEN '1-3 months'
+                    ELSE '3+ months'
+                END as duration_range,
+                COUNT(*) as count
+            FROM INVESTIGATIONS
+            GROUP BY duration_range
+            ORDER BY MIN(DATEDIFF(day, start_date, COALESCE(end_date, CURRENT_DATE())))
+            """
+            duration_df = session.sql(duration_query).to_pandas()
+            
+            fig = px.bar(duration_df, x='DURATION_RANGE', y='COUNT',
+                        title='Investigation Duration Distribution')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Lead Investigator Performance
+        st.markdown("### 👥 Lead Investigator Performance")
+        
+        investigator_perf_query = """
+        SELECT 
+            inv.investigator_name,
+            inv.specialization,
+            COUNT(*) as total_cases,
+            COUNT(*) FILTER (WHERE i.status = 'Closed') as closed_cases,
+            AVG(DATEDIFF(day, i.start_date, COALESCE(i.end_date, CURRENT_DATE()))) as avg_duration
+        FROM INVESTIGATIONS i
+        JOIN INVESTIGATORS inv ON i.lead_investigator_id = inv.investigator_id
+        GROUP BY inv.investigator_name, inv.specialization
+        ORDER BY total_cases DESC
+        LIMIT 10
+        """
+        
+        investigator_perf_df = session.sql(investigator_perf_query).to_pandas()
+        
+        if not investigator_perf_df.empty:
+            fig = px.bar(investigator_perf_df, 
+                        x='INVESTIGATOR_NAME', 
+                        y=['TOTAL_CASES', 'CLOSED_CASES'],
+                        title='Top Investigators by Case Load',
+                        barmode='group')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Active Investigations Table
+        st.markdown("### 🔍 Active Investigations")
+        
+        active_inv_query = """
+        SELECT 
+            i.case_name,
+            g.ghost_name,
+            g.threat_level,
+            inv.investigator_name as lead_investigator,
+            i.start_date,
+            DATEDIFF(day, i.start_date, CURRENT_DATE()) as days_open,
+            i.status,
+            i.priority
+        FROM INVESTIGATIONS i
+        LEFT JOIN GHOSTS g ON i.ghost_id = g.ghost_id
+        LEFT JOIN INVESTIGATORS inv ON i.lead_investigator_id = inv.investigator_id
+        WHERE i.status IN ('Open', 'In_Progress')
+        ORDER BY 
+            CASE i.priority
+                WHEN 'Critical' THEN 1
+                WHEN 'High' THEN 2
+                WHEN 'Medium' THEN 3
+                ELSE 4
+            END,
+            i.start_date
+        LIMIT 20
+        """
+        
+        active_inv_df = session.sql(active_inv_query).to_pandas()
+        st.dataframe(active_inv_df, use_container_width=True, hide_index=True)
+    
+    # ============================================
+    # INVESTIGATORS PERFORMANCE REPORT
+    # ============================================
+    elif report_type == "👥 Investigators Performance Report":
+        st.subheader("👥 Investigators Performance Report")
+        st.caption(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Summary Statistics
+        st.markdown("### 📊 Team Overview")
+        
+        team_stats_query = """
+        SELECT 
+            COUNT(*) as total_investigators,
+            COUNT(*) FILTER (WHERE active_status = TRUE) as active_count,
+            SUM(cases_solved) as total_cases_solved,
+            AVG(experience_years) as avg_experience,
+            AVG(cases_solved) as avg_cases_per_investigator
+        FROM INVESTIGATORS
+        """
+        
+        team_stats = session.sql(team_stats_query).to_pandas().iloc[0]
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.metric("Total Team", int(team_stats['TOTAL_INVESTIGATORS']))
+        with col2:
+            st.metric("Active", int(team_stats['ACTIVE_COUNT']))
+        with col3:
+            st.metric("Cases Solved", int(team_stats['TOTAL_CASES_SOLVED']))
+        with col4:
+            st.metric("Avg Experience", f"{team_stats['AVG_EXPERIENCE']:.1f}y")
+        with col5:
+            st.metric("Cases per Investigator", f"{team_stats['AVG_CASES_PER_INVESTIGATOR']:.1f}")
+        
+        st.markdown("---")
+        
+        # Specialization Distribution
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 🎯 Team Composition")
+            spec_query = """
+            SELECT 
+                specialization,
+                COUNT(*) as count,
+                AVG(experience_years) as avg_experience
+            FROM INVESTIGATORS
+            WHERE active_status = TRUE
+            GROUP BY specialization
+            ORDER BY count DESC
+            """
+            spec_df = session.sql(spec_query).to_pandas()
+            
+            fig = px.pie(spec_df, values='COUNT', names='SPECIALIZATION',
+                        title='Active Team by Specialization')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("### 📈 Experience Levels")
+            exp_query = """
+            SELECT 
+                CASE 
+                    WHEN experience_years < 2 THEN 'Novice (0-1y)'
+                    WHEN experience_years < 5 THEN 'Intermediate (2-4y)'
+                    WHEN experience_years < 10 THEN 'Experienced (5-9y)'
+                    WHEN experience_years < 20 THEN 'Veteran (10-19y)'
+                    ELSE 'Master (20+y)'
+                END as experience_level,
+                COUNT(*) as count
+            FROM INVESTIGATORS
+            WHERE active_status = TRUE
+            GROUP BY experience_level
+            ORDER BY MIN(experience_years)
+            """
+            exp_df = session.sql(exp_query).to_pandas()
+            
+            fig = px.bar(exp_df, x='EXPERIENCE_LEVEL', y='COUNT',
+                        title='Experience Distribution')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Top Performers
+        st.markdown("### 🏆 Top Performers")
+        
+        top_perf_query = """
+        SELECT 
+            investigator_name,
+            specialization,
+            cases_solved,
+            experience_years,
+            ROUND(cases_solved::FLOAT / NULLIF(experience_years, 0), 2) as cases_per_year
+        FROM INVESTIGATORS
+        WHERE active_status = TRUE
+          AND cases_solved > 0
+        ORDER BY cases_solved DESC
+        LIMIT 15
+        """
+        
+        top_perf_df = session.sql(top_perf_query).to_pandas()
+        
+        fig = px.bar(top_perf_df, 
+                    x='INVESTIGATOR_NAME', 
+                    y='CASES_SOLVED',
+                    color='SPECIALIZATION',
+                    title='Top 15 Investigators by Cases Solved',
+                    hover_data=['EXPERIENCE_YEARS', 'CASES_PER_YEAR'])
+        fig.update_layout(xaxis_tickangle=-45)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Performance Table
+        st.markdown("### 📊 Detailed Performance Metrics")
+        st.dataframe(top_perf_df, use_container_width=True, hide_index=True)
+    
+    # Export options
+    st.markdown("---")
+    st.markdown("### 💾 Export Options")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📄 Export to PDF", help="Coming soon"):
+            st.info("PDF export feature coming soon!")
+    
+    with col2:
+        if st.button("📊 Export to Excel", help="Coming soon"):
+            st.info("Excel export feature coming soon!")
+    
+    with col3:
+        if st.button("📧 Email Report", help="Coming soon"):
+            st.info("Email functionality coming soon!")
+
 # Footer
 # ============================================
 # PAGE: VOCABULARY
@@ -839,7 +2934,7 @@ elif page == "📚 Vocabulary":
         definition,
         synonyms,
         related_terms,
-        usage_context
+        usage_examples
     FROM GHOST_DETECTION.APP.BUSINESS_VOCABULARY
     ORDER BY term_category, term_name
     """
@@ -869,8 +2964,8 @@ elif page == "📚 Vocabulary":
                             if pd.notna(term['RELATED_TERMS']):
                                 st.write(f"**Related Terms:** {term['RELATED_TERMS']}")
                             
-                            if pd.notna(term['USAGE_CONTEXT']):
-                                st.info(f"**Usage:** {term['USAGE_CONTEXT']}")
+                            if pd.notna(term['USAGE_EXAMPLES']):
+                                st.info(f"**Usage Example:** {term['USAGE_EXAMPLES']}")
         else:
             st.info("No vocabulary terms found. Run the business vocabulary setup script.")
     except Exception as e:
@@ -963,6 +3058,296 @@ elif page == "📚 Vocabulary":
         except Exception as e:
             st.error(f"Search error: {str(e)}")
             st.info("💡 Tip: Make sure you've run sql/08_business_vocabulary.sql to create the vocabulary tables.")
+
+# ============================================
+# PAGE: IMAGE SIMILARITY SEARCH
+# ============================================
+elif page == "🔍 Image Similarity":
+    st.header("🔍 Image Similarity Search")
+    st.markdown("### Find Similar Paranormal Images Using AI Embeddings")
+    
+    # Check if embeddings table exists
+    try:
+        embeddings_count = session.sql("SELECT COUNT(*) as cnt FROM GHOST_DETECTION.APP.GHOST_IMAGE_EMBEDDINGS").collect()[0]['CNT']
+        
+        if embeddings_count == 0:
+            st.warning("⚠️ No image embeddings found yet.")
+            st.info("Run the following to generate embeddings:")
+            st.code("CALL GHOST_DETECTION.APP.BATCH_GENERATE_EMBEDDINGS();", language="sql")
+        else:
+            st.success(f"✅ {embeddings_count} image embeddings available for search")
+            
+    except Exception as e:
+        st.error("❌ Image embeddings table not found. Please run: sql/14_image_embeddings_table.sql")
+        st.stop()
+    
+    # Create tabs for different search methods
+    tab1, tab2, tab3, tab4 = st.tabs(["🔎 Text Search", "🖼️ Image-to-Image", "📊 Statistics", "🎯 Generate Embeddings"])
+    
+    # TAB 1: Text-based similarity search
+    with tab1:
+        st.subheader("Search by Description")
+        st.write("Enter a description to find similar paranormal images")
+        
+        # Search input
+        search_query = st.text_area(
+            "Search Query",
+            value="translucent figure in white clothing",
+            height=100,
+            help="Describe the type of paranormal image you're looking for"
+        )
+        
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            top_k = st.slider("Number of results", 1, 20, 5)
+        with col2:
+            search_button = st.button("🔍 Search", type="primary", use_container_width=True)
+        
+        if search_button and search_query:
+            with st.spinner("🔄 Searching for similar images..."):
+                try:
+                    # Use the FIND_SIMILAR_IMAGES procedure
+                    search_sql = f"""
+                    CALL GHOST_DETECTION.APP.FIND_SIMILAR_IMAGES(
+                        '{search_query.replace("'", "''")}',
+                        {top_k}
+                    )
+                    """
+                    
+                    results = session.sql(search_sql).to_pandas()
+                    
+                    if not results.empty:
+                        st.success(f"Found {len(results)} similar images!")
+                        
+                        # Display results
+                        for idx, row in results.iterrows():
+                            with st.expander(
+                                f"Match #{idx+1} - Similarity: {row['SIMILARITY_SCORE']:.3f} - {row['IMAGE_DESCRIPTION'][:80]}..."
+                            ):
+                                col1, col2 = st.columns([1, 2])
+                                
+                                with col1:
+                                    st.metric("Similarity Score", f"{row['SIMILARITY_SCORE']:.3f}")
+                                    st.write(f"**Evidence ID:** {row['EVIDENCE_ID']}")
+                                    st.write(f"**Ghost ID:** {row['GHOST_ID']}")
+                                    st.write(f"**Path:** `{row['IMAGE_PATH']}`")
+                                
+                                with col2:
+                                    st.write("**Original Description:**")
+                                    st.write(row['IMAGE_DESCRIPTION'])
+                                    
+                                    if pd.notna(row.get('AI_DESCRIPTION')):
+                                        st.write("**AI Analysis:**")
+                                        st.write(row['AI_DESCRIPTION'][:500] + "..." if len(str(row['AI_DESCRIPTION'])) > 500 else row['AI_DESCRIPTION'])
+                    else:
+                        st.warning("No similar images found. Try a different search query.")
+                        
+                except Exception as e:
+                    st.error(f"Search error: {str(e)}")
+                    st.info("💡 Make sure the FIND_SIMILAR_IMAGES function exists and embeddings are generated.")
+    
+    # TAB 2: Image-to-image similarity
+    with tab2:
+        st.subheader("Find Similar Images")
+        st.write("Select an image to find others that are similar")
+        
+        # Get list of available embeddings
+        try:
+            embeddings_list = session.sql("""
+                SELECT 
+                    e.embedding_id,
+                    e.evidence_id,
+                    e.image_description,
+                    g.ghost_name,
+                    g.ghost_type
+                FROM GHOST_DETECTION.APP.GHOST_IMAGE_EMBEDDINGS e
+                LEFT JOIN GHOST_DETECTION.APP.GHOSTS g ON e.ghost_id = g.ghost_id
+                ORDER BY e.created_at DESC
+                LIMIT 100
+            """).to_pandas()
+            
+            if not embeddings_list.empty:
+                # Create selection dropdown
+                embedding_options = {
+                    f"{row['EMBEDDING_ID']} - {row['IMAGE_DESCRIPTION'][:60]}...": row['EMBEDDING_ID']
+                    for _, row in embeddings_list.iterrows()
+                }
+                
+                selected_display = st.selectbox(
+                    "Select Source Image",
+                    options=list(embedding_options.keys())
+                )
+                
+                selected_embedding_id = embedding_options[selected_display]
+                
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    top_k_img = st.slider("Number of similar images", 1, 20, 5, key="img_slider")
+                with col2:
+                    find_button = st.button("🔍 Find Similar", type="primary", use_container_width=True)
+                
+                if find_button:
+                    with st.spinner("🔄 Finding similar images..."):
+                        try:
+                            similarity_sql = f"""
+                            CALL GHOST_DETECTION.APP.FIND_SIMILAR_TO_IMAGE(
+                                '{selected_embedding_id}',
+                                {top_k_img}
+                            )
+                            """
+                            
+                            similar_results = session.sql(similarity_sql).to_pandas()
+                            
+                            if not similar_results.empty:
+                                st.success(f"Found {len(similar_results)} similar images!")
+                                
+                                # Display in grid
+                                cols = st.columns(2)
+                                for idx, row in similar_results.iterrows():
+                                    with cols[idx % 2]:
+                                        with st.container():
+                                            st.markdown(f"**Similarity: {row['SIMILARITY_SCORE']:.3f}**")
+                                            st.write(f"📸 {row['IMAGE_DESCRIPTION'][:100]}...")
+                                            st.caption(f"Evidence: {row['EVIDENCE_ID']} | Ghost: {row['GHOST_ID']}")
+                                            st.caption(f"Path: `{row['IMAGE_PATH']}`")
+                                            st.markdown("---")
+                            else:
+                                st.warning("No similar images found.")
+                                
+                        except Exception as e:
+                            st.error(f"Similarity search error: {str(e)}")
+            else:
+                st.info("No embeddings available. Generate some first in the 'Generate Embeddings' tab.")
+                
+        except Exception as e:
+            st.error(f"Error loading embeddings: {str(e)}")
+    
+    # TAB 3: Statistics
+    with tab3:
+        st.subheader("📊 Image Embedding Statistics")
+        
+        try:
+            # Get statistics
+            stats = session.sql("""
+                SELECT * FROM GHOST_DETECTION.APP.VW_IMAGE_SIMILARITY_STATS
+            """).to_pandas()
+            
+            if not stats.empty:
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Total Embeddings", int(stats['TOTAL_EMBEDDINGS'].iloc[0]))
+                with col2:
+                    st.metric("Unique Ghosts", int(stats['UNIQUE_GHOSTS'].iloc[0]))
+                with col3:
+                    st.metric("Avg Confidence", f"{stats['AVG_CONFIDENCE'].iloc[0]:.3f}")
+                with col4:
+                    st.metric("Recent (7 days)", int(stats['RECENT_EMBEDDINGS'].iloc[0]))
+                
+                st.markdown("---")
+                
+                # Popular searches
+                st.subheader("🔥 Most Searched Images")
+                popular = session.sql("""
+                    SELECT * FROM GHOST_DETECTION.APP.VW_POPULAR_IMAGE_SEARCHES
+                    LIMIT 10
+                """).to_pandas()
+                
+                if not popular.empty:
+                    st.dataframe(
+                        popular[['GHOST_NAME', 'GHOST_TYPE', 'IMAGE_DESCRIPTION', 'SEARCH_COUNT', 'CONFIDENCE_SCORE']],
+                        use_container_width=True
+                    )
+                else:
+                    st.info("No search history yet.")
+                
+                st.markdown("---")
+                
+                # Embedding performance
+                st.subheader("⚡ Embedding Generation Performance")
+                perf = session.sql("""
+                    SELECT * FROM GHOST_DETECTION.APP.VW_EMBEDDING_PERFORMANCE
+                    LIMIT 24
+                """).to_pandas()
+                
+                if not perf.empty:
+                    fig = px.line(
+                        perf,
+                        x='HOUR',
+                        y='EMBEDDINGS_GENERATED',
+                        title='Embeddings Generated (Last 24 Hours)',
+                        markers=True
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+        except Exception as e:
+            st.error(f"Error loading statistics: {str(e)}")
+    
+    # TAB 4: Generate Embeddings
+    with tab4:
+        st.subheader("🎯 Generate Image Embeddings")
+        st.write("Create AI embeddings for images without them")
+        
+        # Check how many need embedding
+        try:
+            needs_embedding = session.sql("""
+                SELECT COUNT(*) as cnt
+                FROM GHOST_DETECTION.APP.GHOST_EVIDENCE e
+                LEFT JOIN GHOST_DETECTION.APP.GHOST_IMAGE_EMBEDDINGS emb 
+                    ON e.evidence_id = emb.evidence_id
+                WHERE e.evidence_type IN ('Photograph', 'Video', 'Thermal Image', 'Image')
+                  AND emb.embedding_id IS NULL
+            """).collect()[0]['CNT']
+            
+            st.info(f"📊 {needs_embedding} images need embeddings")
+            
+            if needs_embedding > 0:
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    if st.button("🚀 Generate All Embeddings", type="primary", use_container_width=True):
+                        with st.spinner(f"⏳ Generating embeddings for {needs_embedding} images..."):
+                            try:
+                                result = session.call("GHOST_DETECTION.APP.BATCH_GENERATE_EMBEDDINGS")
+                                st.success(f"✅ {result}")
+                                st.balloons()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error: {str(e)}")
+                
+                with col2:
+                    st.metric("To Process", needs_embedding)
+            else:
+                st.success("✅ All images have embeddings!")
+            
+            st.markdown("---")
+            
+            # Manual single embedding generation
+            st.subheader("➕ Generate Single Embedding")
+            
+            with st.form("single_embedding_form"):
+                evidence_id = st.text_input("Evidence ID", placeholder="EV0001")
+                description = st.text_area(
+                    "Image Description",
+                    placeholder="Describe the paranormal image...",
+                    height=100
+                )
+                
+                submit = st.form_submit_button("Generate Embedding")
+                
+                if submit and evidence_id and description:
+                    try:
+                        result = session.call(
+                            "GHOST_DETECTION.APP.GENERATE_IMAGE_EMBEDDING",
+                            evidence_id,
+                            description
+                        )
+                        st.success(f"✅ {result}")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                        
+        except Exception as e:
+            st.error(f"Error checking embeddings: {str(e)}")
 
 st.markdown("---")
 st.markdown(

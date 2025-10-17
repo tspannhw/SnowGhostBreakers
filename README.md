@@ -13,7 +13,8 @@ SnowGhost Breakers is a complete paranormal investigation system that demonstrat
   - Sentiment analysis of sighting reports
   - Automated threat assessments
   - Ghost classification using LLMs
-  - Vector embeddings for similarity search
+  - **AI-powered image embeddings (1024-dimensional vectors)**
+  - **Vector similarity search with custom cosine similarity**
   - AI-generated investigation reports
   - Image and audio analysis with Cortex Vision AI
 - **🕸️ Neo4j Graph Analytics**: Network analysis of ghost relationships, community detection, centrality scoring, and predictive modeling
@@ -37,11 +38,18 @@ SnowGhostBreakers/
 │   ├── 03_sample_data.sql             # Sample ghost data
 │   ├── 04_stored_procedures.sql       # Business logic procedures
 │   ├── 05_semantic_views.sql          # Analytics views
-│   └── 06_cortex_ai_functions.sql     # AI integration examples
+│   ├── 06_cortex_ai_functions.sql     # AI integration examples
+│   ├── 14_image_embeddings_table.sql  # **NEW: Image similarity search**
+│   └── ...                            # Additional setup scripts
 ├── streamlit_app/
 │   └── ghost_detection_app.py         # Main Streamlit application
+│       └── **NEW: 🔍 Image Similarity page**
 ├── notebooks/
-│   └── 01_ghost_analytics.ipynb       # Analytics notebook
+│   ├── 01_ghost_analytics.ipynb       # Analytics notebook
+│   └── 02_data_loader.ipynb           # Bulk data loading
+├── scripts/
+│   ├── bulk_ghost_processor.py        # Bulk data processor (key pair auth)
+│   └── ghost_analytics.py             # Advanced analytics (key pair auth)
 ├── cortex_analyst/
 │   └── ghost_semantic_model.yaml      # Cortex Analyst configuration
 ├── setup.sql                          # Master setup script
@@ -146,6 +154,12 @@ Case management
 - **Vector Embeddings**: Convert descriptions to semantic vectors
 - **Similarity Search**: Find related sightings and patterns
 - **Cortex Search**: Natural language search over sighting data
+- **🆕 Image Embeddings**: AI-powered image similarity search
+  - 1024-dimensional vectors using `snowflake-arctic-embed-l-v2.0-8k`
+  - Custom JavaScript cosine similarity function
+  - Text-to-image and image-to-image search
+  - Batch embedding generation
+  - Real-time similarity scoring
 
 ### 3. Complete (LLM)
 - **Report Generation**: Create comprehensive investigation reports
@@ -171,6 +185,11 @@ FROM GHOST_SIGHTINGS;
 -- Find similar sightings
 SELECT * FROM VW_SIMILAR_SIGHTINGS 
 WHERE base_sighting_id = 'SIGHT001';
+
+-- 🆕 Image similarity search
+CALL FIND_SIMILAR_IMAGES('ghost orb', 10);
+CALL FIND_SIMILAR_TO_IMAGE('EMB_ABC123', 5);
+CALL BATCH_GENERATE_EMBEDDINGS(100);
 ```
 
 ## 📈 Analytics & Insights

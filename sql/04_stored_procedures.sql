@@ -200,8 +200,8 @@ BEGIN
             SELECT 
                 s.sighting_id,
                 VECTOR_COSINE_SIMILARITY(
-                    SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', :description_text),
-                    SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', s.description)
+                    SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', :description_text),
+                    SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
                 ) as similarity_score,
                 s.description
             FROM GHOST_SIGHTINGS s

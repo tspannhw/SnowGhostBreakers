@@ -1,0 +1,42 @@
+# Snowflake Streamlit Environment Configuration
+# This file is used when deploying to Snowflake Streamlit apps
+# Snowflake Streamlit uses conda packages
+
+name: snowghost_breakers
+channels:
+  - snowflake
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python version
+  - python=3.10
+
+  # Snowflake packages (pre-installed in Snowflake Streamlit)
+  # - snowflake-snowpark-python
+  # - streamlit
+  
+  # Data processing
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+  
+  # Visualization
+  - plotly>=5.18.0
+  - matplotlib>=3.7.0
+  
+  # Geospatial
+  - geopy>=2.4.0
+  
+  # Cryptography for key pair auth
+  - cryptography>=41.0.0
+  
+  # Additional utilities
+  - pyyaml>=6.0
+  - python-dotenv>=1.0.0
+  
+  # Pip packages (if not available via conda)
+  - pip
+  - pip:
+    - geopy>=2.4.0
+    - networkx>=3.1
+

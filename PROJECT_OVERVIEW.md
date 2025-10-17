@@ -16,7 +16,7 @@
 - **Complete (LLM)**: Generate reports, threat assessments, and recommendations
 - **Sentiment Analysis**: Assess emotional tone of sighting reports
 - **Text Classification**: Automatically categorize ghost types
-- **Vector Embeddings**: Semantic search using `snowflake-arctic-embed-l`
+- **Vector Embeddings**: Semantic search using `snowflake-arctic-embed-l-v2.0-8k`
 - **Similarity Search**: Find related sightings using cosine similarity
 - **Translation**: Multi-language support for international teams
 
@@ -153,7 +153,7 @@ SnowGhostBreakers/
 - Threat level recommendations
 
 ### 4. Embeddings & Search
-- Vector embeddings with `snowflake-arctic-embed-l`
+- Vector embeddings with `snowflake-arctic-embed-l-v2.0-8k`
 - Semantic similarity search
 - Related sighting detection
 - Pattern identification

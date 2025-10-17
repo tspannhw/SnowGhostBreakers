@@ -50,7 +50,7 @@ WITH image_metadata AS (...)
 SELECT 
     VECTOR_COSINE_SIMILARITY(
         target_embedding,
-        SNOWFLAKE.CORTEX.EMBED_TEXT_768(...)
+        SNOWFLAKE.CORTEX.AI_EMBED(...)
     ) as similarity_score
 ```
 
@@ -190,7 +190,7 @@ GROUP BY ghost_type
 
 ### AISQL Features Used:
 1. ✅ **SNOWFLAKE.CORTEX.COMPLETE** - Text generation
-2. ✅ **SNOWFLAKE.CORTEX.EMBED_TEXT_768** - Embeddings
+2. ✅ **SNOWFLAKE.CORTEX.AI_EMBED** - Embeddings
 3. ✅ **VECTOR_COSINE_SIMILARITY** - Similarity search
 4. ✅ **TRY_PARSE_JSON** - Metadata parsing
 5. ✅ **LISTAGG** - String aggregation
@@ -228,7 +228,7 @@ FROM GHOST_EVIDENCE
 ### 2. Semantic Image Search
 ```sql
 WITH target AS (
-    SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', search_query)
+    SELECT SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', search_query)
 )
 SELECT VECTOR_COSINE_SIMILARITY(target.embedding, image.embedding) as similarity
 ```

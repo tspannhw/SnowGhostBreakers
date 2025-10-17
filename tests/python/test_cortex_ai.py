@@ -214,8 +214,8 @@ class TestCortexEmbeddings:
         mock_session.sql.return_value.collect.return_value = [(mock_embedding,)]
         
         query = """
-        SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768(
-            'snowflake-arctic-embed-l',
+        SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+            'snowflake-arctic-embed-l-v2.0-8k',
             'Lady in White apparition at midnight'
         ) as embedding
         """
@@ -236,8 +236,8 @@ class TestCortexEmbeddings:
         
         query = """
         WITH target AS (
-            SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768(
-                'snowflake-arctic-embed-l',
+            SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+                'snowflake-arctic-embed-l-v2.0-8k',
                 'Shadow entity with electronic interference'
             ) as target_embedding
         )
@@ -262,12 +262,12 @@ class TestCortexEmbeddings:
     def test_embedding_model_validation(self):
         """Test embedding model name validation"""
         valid_models = [
-            'snowflake-arctic-embed-l',
+            'snowflake-arctic-embed-l-v2.0-8k',
             'snowflake-arctic-embed-m',
             'snowflake-arctic-embed-s'
         ]
         
-        test_model = 'snowflake-arctic-embed-l'
+        test_model = 'snowflake-arctic-embed-l-v2.0-8k'
         assert test_model in valid_models
     
     @patch('snowflake.snowpark.Session')
@@ -283,7 +283,7 @@ class TestCortexEmbeddings:
         FROM GHOST_SIGHTINGS
         WHERE VECTOR_COSINE_SIMILARITY(
             description_embedding,
-            SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', 'dark figure in cellar')
+            SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', 'dark figure in cellar')
         ) > 0.8
         """
         

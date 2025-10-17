@@ -30,7 +30,21 @@ CREATE OR REPLACE TABLE BUSINESS_VOCABULARY (
     FOREIGN KEY (parent_term_id) REFERENCES BUSINESS_VOCABULARY(term_id)
 );
 
--- Ghost Ontology - Hierarchical classification
+-- Ghost Taxonomy - Classification system for Streamlit app
+CREATE OR REPLACE TABLE GHOST_TAXONOMY (
+    taxonomy_id VARCHAR(50) PRIMARY KEY,
+    classification_level INT, -- 1=Kingdom, 2=Class, 3=Order, 4=Family, 5=Species
+    classification_name VARCHAR(200) NOT NULL,
+    parent_classification VARCHAR(200), -- Parent classification name (denormalized for easy queries)
+    description TEXT,
+    key_attributes TEXT, -- Key characteristics that define this classification
+    typical_behaviors TEXT,
+    threat_indicators TEXT,
+    containment_protocols TEXT,
+    created_date TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- Ghost Ontology - Hierarchical classification (detailed version)
 CREATE OR REPLACE TABLE GHOST_ONTOLOGY (
     ontology_id VARCHAR(50) PRIMARY KEY,
     classification_level INT, -- 1=Kingdom, 2=Class, 3=Order, 4=Family, 5=Species
@@ -82,6 +96,100 @@ CREATE OR REPLACE TABLE VOCABULARY_DATA_MAPPING (
     created_date TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
     FOREIGN KEY (term_id) REFERENCES BUSINESS_VOCABULARY(term_id)
 );
+
+-- ============================================
+-- INSERT GHOST TAXONOMY DATA
+-- ============================================
+
+-- Level 1: Kingdom
+INSERT INTO GHOST_TAXONOMY (taxonomy_id, classification_level, classification_name, parent_classification, description, key_attributes)
+SELECT 'TAX_L1_001', 1, 'Paranormal Entities', NULL,
+'All supernatural beings and phenomena that exist outside normal physical laws',
+'Non-corporeal existence, ability to manifest, interaction with physical world, energy-based existence';
+
+-- Level 2: Class
+INSERT INTO GHOST_TAXONOMY (taxonomy_id, classification_level, classification_name, parent_classification, description, key_attributes)
+SELECT 'TAX_L2_001', 2, 'Spectral Entities', 'Paranormal Entities',
+'Ghosts and spirits of deceased humans or animals',
+'Once-living origin, human-like intelligence, emotional responses, attachment to locations'
+UNION ALL
+SELECT 'TAX_L2_002', 2, 'Non-Human Entities', 'Paranormal Entities',
+'Paranormal beings that never had physical form',
+'Never living, alien intelligence patterns, undefined motivations, unpredictable behavior'
+UNION ALL
+SELECT 'TAX_L2_003', 2, 'Energy Phenomena', 'Paranormal Entities',
+'Pure energy manifestations without consciousness',
+'No intelligence, environmental reactions, temporal patterns, residual energy signatures';
+
+-- Level 3: Order
+INSERT INTO GHOST_TAXONOMY (taxonomy_id, classification_level, classification_name, parent_classification, description, key_attributes, typical_behaviors)
+SELECT 'TAX_L3_001', 3, 'Interactive Spirits', 'Spectral Entities',
+'Conscious entities capable of communication and intelligent interaction',
+'Self-awareness, communication ability, learning capacity, goal-oriented behavior',
+'Responds to questions, manipulates objects with purpose, seeks attention or assistance'
+UNION ALL
+SELECT 'TAX_L3_002', 3, 'Residual Imprints', 'Spectral Entities',
+'Non-interactive recordings of past events',
+'Repetitive behavior, no awareness of observers, temporal consistency, environmental triggers',
+'Repeats same actions, ignores living persons, appears at consistent times/locations'
+UNION ALL
+SELECT 'TAX_L3_003', 3, 'Malevolent Entities', 'Spectral Entities',
+'Harmful or aggressive spirits with negative intent',
+'Hostile behavior, threat to living, negative energy emission, territorial aggression',
+'Physical attacks, psychological harm, property damage, feeding on fear';
+
+-- Level 4: Family
+INSERT INTO GHOST_TAXONOMY (taxonomy_id, classification_level, classification_name, parent_classification, description, key_attributes, threat_indicators, containment_protocols)
+SELECT 'TAX_L4_001', 4, 'Apparitions', 'Interactive Spirits',
+'Visible manifestations of human spirits',
+'Visual appearance, human form retention, variable opacity, conscious awareness',
+'Generally low threat unless distressed or territorial',
+'Communication-based resolution, peaceful transition assistance, minimal containment needed'
+UNION ALL
+SELECT 'TAX_L4_002', 4, 'Poltergeists', 'Malevolent Entities',
+'Physically interactive and often violent entities',
+'Object manipulation, noise generation, physical force application, focused aggression',
+'Medium to high threat, property damage, potential physical harm',
+'Active containment required, proton stream capture, secure storage in containment unit'
+UNION ALL
+SELECT 'TAX_L4_003', 4, 'Shadow Figures', 'Malevolent Entities',
+'Dark, humanoid silhouettes lacking definitive features',
+'Pure darkness form, no facial features, rapid movement, corner-lurking behavior',
+'Low to medium threat, psychological impact, rarely physical',
+'Light-based deterrence, positive energy reinforcement, documentation protocols'
+UNION ALL
+SELECT 'TAX_L4_004', 4, 'Orbs', 'Energy Phenomena',
+'Spherical light manifestations of varying colors',
+'Spherical shape, luminescence, floating movement, camera sensitivity',
+'Minimal threat, typically harmless',
+'Observation only, photographic documentation, no containment needed';
+
+-- Level 5: Species (specific ghost types)
+INSERT INTO GHOST_TAXONOMY (taxonomy_id, classification_level, classification_name, parent_classification, description, key_attributes, threat_indicators)
+SELECT 'TAX_L5_001', 5, 'Full Body Apparition', 'Apparitions',
+'Complete visible manifestation of a human form',
+'Full human appearance, clothing visible, facial features, detailed form',
+'Low threat, usually seeking communication or assistance'
+UNION ALL
+SELECT 'TAX_L5_002', 5, 'Partial Apparition', 'Apparitions',
+'Incomplete visible manifestation (head, torso, or limbs only)',
+'Incomplete form, fading edges, transparent qualities, specific body parts',
+'Low threat, often residual energy or weak manifestation'
+UNION ALL
+SELECT 'TAX_L5_003', 5, 'Class IV Full-Roaming Vapor', 'Poltergeists',
+'Highly mobile poltergeist capable of extensive property damage',
+'High kinetic energy, object throwing capability, territorial aggression, sustained activity',
+'High threat, significant property damage, potential injury risk'
+UNION ALL
+SELECT 'TAX_L5_004', 5, 'Demon Entity', 'Malevolent Entities',
+'Non-human malevolent entity with extreme threat level',
+'Never human, extreme power, possession capability, severe aggression',
+'Extreme threat, possession risk, physical and psychological harm'
+UNION ALL
+SELECT 'TAX_L5_005', 5, 'Residual Haunt', 'Residual Imprints',
+'Recorded event that replays without awareness',
+'Exact repetition, no interaction, specific trigger times, environmental dependency',
+'No threat, purely observational phenomenon';
 
 -- ============================================
 -- INSERT CORE BUSINESS VOCABULARY
@@ -411,8 +519,8 @@ $$
         term_name,
         definition,
         VECTOR_COSINE_SIMILARITY(
-            SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', search_term),
-            SNOWFLAKE.CORTEX.EMBED_TEXT_768('snowflake-arctic-embed-l', term_name || ' ' || definition)
+            SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', search_term),
+            SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', term_name || ' ' || definition)
         ) as relevance_score
     FROM BUSINESS_VOCABULARY
     WHERE relevance_score > 0.6
