@@ -1,7 +1,21 @@
 """
 Ghost Detection and Analysis Application
 Streamlit Application for Snowflake
+
+Required packages (for Snowflake Streamlit):
+- snowflake-snowpark-python
+- pandas
+- plotly
+- streamlit
 """
+
+# When deploying to Snowflake, ensure these packages are available:
+# CREATE STREAMLIT ghost_detection_app
+# ROOT_LOCATION = '@ghost_detection.app.streamlit_stage'
+# MAIN_FILE = 'ghost_detection_app.py'
+# QUERY_WAREHOUSE = 'COMPUTE_WH'
+# EXTERNAL_ACCESS_INTEGRATIONS = ()
+# PACKAGES = ('snowflake-snowpark-python', 'pandas', 'plotly');
 
 import streamlit as st
 from snowflake.snowpark.context import get_active_session
@@ -76,7 +90,8 @@ page = st.sidebar.radio(
     "Select View",
     ["📊 Dashboard", "👻 Ghost Registry", "📍 Sightings", "🔬 Evidence Analysis", 
      "📋 Investigations", "👥 Investigators", "🏢 Global Offices", "🤖 AI Insights", 
-     "➕ New Sighting", "📈 Analytics", "📑 Reports", "📚 Vocabulary", "🔍 Image Similarity"]
+     "➕ New Sighting", "📈 Analytics", "📑 Reports", "📚 Vocabulary", "🔍 Image Similarity",
+     "💬 SnowBreakers Chat"]
 )
 
 # Sidebar filters
@@ -3348,6 +3363,236 @@ elif page == "🔍 Image Similarity":
                         
         except Exception as e:
             st.error(f"Error checking embeddings: {str(e)}")
+
+# ============================================
+# PAGE: SNOWBREAKERS CHAT
+# ============================================
+elif page == "💬 SnowBreakers Chat":
+    st.markdown("# 💬 SnowBreakers AI Chat")
+    st.markdown("### *Ask me anything about ghosts, sightings, and paranormal activity!*")
+    st.markdown("---")
+    
+    # Initialize chat history in session state
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = [
+            {"role": "assistant", "content": "👻 Hello! I'm the SnowBreakers AI Assistant. I can help you analyze ghost data, find patterns in sightings, and answer questions about paranormal activity. What would you like to know?"}
+        ]
+    
+    # Sidebar with quick suggestions
+    with st.sidebar:
+        st.markdown("---")
+        st.subheader("💡 Quick Questions")
+        
+        suggestions = [
+            "How many ghosts have we detected?",
+            "What's the most common ghost type?",
+            "Show me recent high-threat sightings",
+            "Where are the paranormal hotspots?",
+            "What ghost patterns have we observed?",
+            "Analyze ghost activity by time of day",
+            "Which ghosts are most dangerous?",
+            "Show investigation success rates"
+        ]
+        
+        st.markdown("Click to ask:")
+        for suggestion in suggestions:
+            if st.button(f"📝 {suggestion}", key=f"suggest_{suggestions.index(suggestion)}", use_container_width=True):
+                st.session_state.chat_messages.append({"role": "user", "content": suggestion})
+                st.rerun()
+    
+    # Display chat messages
+    for message in st.session_state.chat_messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    # Chat input
+    if prompt := st.chat_input("Ask me anything about ghost data..."):
+        # Add user message to chat
+        st.session_state.chat_messages.append({"role": "user", "content": prompt})
+        
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Generate AI response
+        with st.chat_message("assistant"):
+            with st.spinner("🤔 Analyzing ghost data..."):
+                try:
+                    # Build context from database
+                    context_parts = []
+                    
+                    # Get ghost statistics
+                    try:
+                        ghost_stats = session.sql("""
+                            SELECT 
+                                COUNT(*) as total_ghosts,
+                                COUNT(DISTINCT ghost_type) as unique_types,
+                                AVG(threat_level) as avg_threat
+                            FROM GHOST_DETECTION.APP.GHOSTS
+                        """).collect()[0]
+                        
+                        context_parts.append(f"""
+Database Statistics:
+- Total Ghosts: {ghost_stats['TOTAL_GHOSTS']}
+- Unique Ghost Types: {ghost_stats['UNIQUE_TYPES']}
+- Average Threat Level: {ghost_stats['AVG_THREAT']:.2f}
+""")
+                    except:
+                        pass
+                    
+                    # Get recent sightings
+                    try:
+                        recent = session.sql("""
+                            SELECT 
+                                COUNT(*) as recent_count,
+                                MAX(sighting_date) as latest_date
+                            FROM GHOST_DETECTION.APP.GHOST_SIGHTINGS
+                            WHERE sighting_date >= DATEADD(day, -7, CURRENT_DATE())
+                        """).collect()[0]
+                        
+                        context_parts.append(f"""
+Recent Activity:
+- Sightings (Last 7 days): {recent['RECENT_COUNT']}
+- Latest Sighting: {recent['LATEST_DATE']}
+""")
+                    except:
+                        pass
+                    
+                    # Get top ghost types
+                    try:
+                        top_types = session.sql("""
+                            SELECT ghost_type, COUNT(*) as count
+                            FROM GHOST_DETECTION.APP.GHOSTS
+                            GROUP BY ghost_type
+                            ORDER BY count DESC
+                            LIMIT 3
+                        """).collect()
+                        
+                        types_str = ", ".join([f"{row['GHOST_TYPE']} ({row['COUNT']})" for row in top_types])
+                        context_parts.append(f"Top Ghost Types: {types_str}")
+                    except:
+                        pass
+                    
+                    # Build comprehensive prompt
+                    system_context = "\n".join(context_parts)
+                    
+                    full_prompt = f"""You are the SnowBreakers AI Assistant, an expert in paranormal activity and ghost detection. 
+You have access to a comprehensive ghost detection database with information about ghosts, sightings, evidence, and investigations.
+
+Current Database Context:
+{system_context}
+
+User Question: {prompt}
+
+Instructions:
+- Provide helpful, accurate responses based on the database context
+- If the question requires specific data not in the context, suggest SQL queries or analysis
+- Use emojis appropriately (👻 🔍 📊 ⚠️ 💡)
+- Be conversational but professional
+- If you don't have enough information, suggest what data would be helpful
+- Format responses with bullet points and clear sections when appropriate
+
+Response:"""
+                    
+                    # Use Cortex Complete for response
+                    response = session.sql(f"""
+                        SELECT SNOWFLAKE.CORTEX.COMPLETE(
+                            'mistral-large2',
+                            '{full_prompt.replace("'", "''")}'
+                        ) as response
+                    """).collect()[0]['RESPONSE']
+                    
+                    # Display response
+                    st.markdown(response)
+                    
+                    # Add assistant response to chat history
+                    st.session_state.chat_messages.append({"role": "assistant", "content": response})
+                    
+                except Exception as e:
+                    error_msg = f"⚠️ I encountered an error accessing the ghost database: {str(e)}\n\nPlease try rephrasing your question or ask about:\n- Ghost statistics and counts\n- Recent sightings and patterns\n- Threat assessments\n- Investigation data"
+                    st.error(error_msg)
+                    st.session_state.chat_messages.append({"role": "assistant", "content": error_msg})
+    
+    # Chat controls
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 1, 4])
+    
+    with col1:
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.chat_messages = [
+                {"role": "assistant", "content": "👻 Chat cleared! What would you like to know?"}
+            ]
+            st.rerun()
+    
+    with col2:
+        if st.button("💾 Export Chat", use_container_width=True):
+            # Export chat as JSON
+            chat_export = {
+                "timestamp": datetime.now().isoformat(),
+                "messages": st.session_state.chat_messages
+            }
+            st.download_button(
+                label="📥 Download JSON",
+                data=json.dumps(chat_export, indent=2),
+                file_name=f"snowbreakers_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
+    
+    # Additional features
+    with st.expander("🔧 Advanced Features"):
+        st.markdown("### Direct Database Query")
+        st.markdown("*For advanced users: Execute custom SQL queries*")
+        
+        custom_query = st.text_area(
+            "SQL Query",
+            placeholder="SELECT * FROM GHOST_DETECTION.APP.GHOSTS LIMIT 10;",
+            height=100
+        )
+        
+        if st.button("▶️ Execute Query"):
+            if custom_query:
+                try:
+                    result = session.sql(custom_query).to_pandas()
+                    st.success(f"✅ Query executed successfully! Returned {len(result)} rows.")
+                    st.dataframe(result, use_container_width=True)
+                    
+                    # Add result summary to chat
+                    summary = f"📊 Executed custom query: `{custom_query}`. Returned {len(result)} rows."
+                    st.session_state.chat_messages.append({"role": "assistant", "content": summary})
+                    
+                except Exception as e:
+                    st.error(f"❌ Query error: {str(e)}")
+            else:
+                st.warning("Please enter a SQL query")
+    
+    with st.expander("💡 Usage Tips"):
+        st.markdown("""
+        ### How to Use SnowBreakers Chat
+        
+        **Ask Natural Questions:**
+        - "How many ghosts have we detected this month?"
+        - "What's the average threat level of poltergeists?"
+        - "Show me sightings in abandoned buildings"
+        
+        **Get Insights:**
+        - "What patterns do you see in recent activity?"
+        - "Which locations have the most sightings?"
+        - "Analyze ghost behavior trends"
+        
+        **Request Analysis:**
+        - "Compare ghost types by danger level"
+        - "Find correlations between EMF readings and ghost types"
+        - "Identify paranormal hotspots"
+        
+        **Explore Data:**
+        - Use the quick questions in the sidebar
+        - Ask follow-up questions for deeper analysis
+        - Request specific charts or visualizations
+        
+        **Pro Tips:**
+        - Be specific in your questions for better results
+        - Ask for SQL queries if you want to see the data directly
+        - Use the export feature to save important conversations
+        """)
 
 st.markdown("---")
 st.markdown(

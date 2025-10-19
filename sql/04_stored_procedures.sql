@@ -114,14 +114,30 @@ $$
 DECLARE
     report_text VARCHAR;
     sighting_count INT;
+    ghost_name_var VARCHAR;
+    ghost_type_var VARCHAR;
     threat_level_var VARCHAR;
+    description_var TEXT;
+    origin_story_var TEXT;
 BEGIN
-    -- Get ghost details
+    -- Get sighting count
     SELECT COUNT(*) INTO :sighting_count
     FROM GHOST_SIGHTINGS
     WHERE ghost_id = :ghost_id_param;
     
-    SELECT threat_level INTO :threat_level_var
+    -- Get all ghost details in one query
+    SELECT 
+        ghost_name,
+        ghost_type,
+        threat_level,
+        description,
+        origin_story
+    INTO 
+        :ghost_name_var,
+        :ghost_type_var,
+        :threat_level_var,
+        :description_var,
+        :origin_story_var
     FROM GHOSTS
     WHERE ghost_id = :ghost_id_param;
     
@@ -130,17 +146,15 @@ BEGIN
         'mistral-large2',
         CONCAT(
             'Generate a detailed paranormal investigation report for a ghost with the following details: ',
-            'Name: ', ghost_name, ', ',
-            'Type: ', ghost_type, ', ',
-            'Threat Level: ', threat_level, ', ',
-            'Description: ', description, ', ',
+            'Name: ', :ghost_name_var, ', ',
+            'Type: ', :ghost_type_var, ', ',
+            'Threat Level: ', :threat_level_var, ', ',
+            'Description: ', :description_var, ', ',
             'Total Sightings: ', :sighting_count, '. ',
-            'Origin: ', origin_story,
+            'Origin: ', :origin_story_var,
             '. Provide recommendations for containment or monitoring.'
         )
-    ) INTO :report_text
-    FROM GHOSTS
-    WHERE ghost_id = :ghost_id_param;
+    ) INTO :report_text;
     
     RETURN report_text;
 END;

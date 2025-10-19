@@ -15,6 +15,7 @@ SnowGhost Breakers is a complete paranormal investigation system that demonstrat
   - Ghost classification using LLMs
   - **AI-powered image embeddings (1024-dimensional vectors)**
   - **Vector similarity search with custom cosine similarity**
+  - **💬 SnowBreakers Chat: Conversational AI interface for natural language querying**
   - AI-generated investigation reports
   - Image and audio analysis with Cortex Vision AI
 - **🕸️ Neo4j Graph Analytics**: Network analysis of ghost relationships, community detection, centrality scoring, and predictive modeling
@@ -351,12 +352,31 @@ Apache 2.0 License - See LICENSE file
 - Leverages Cortex AI capabilities
 - Based on the original AIM-Ghosts project by tspannhw
 
+## 📚 Documentation
+
+**Comprehensive documentation is available in the `docs/` directory:**
+
+- **Getting Started**: Installation guides, quick starts, and tutorials
+- **Feature Guides**: Detailed documentation for each feature
+- **Troubleshooting**: Fix guides and error resolution
+- **Technical Reference**: API docs, architecture diagrams
+
+See [`docs/README.md`](docs/README.md) for the complete documentation index.
+
+**Quick Links:**
+- [Quick Start Guide](docs/QUICKSTART.md)
+- [Installation Guide](docs/INSTALLATION_GUIDE.md)
+- [Image Embeddings Fixes](docs/IMAGE_EMBEDDINGS_ALL_FIXES.md)
+- [SnowBreakers Chat Guide](docs/SNOWBREAKERS_CHAT_GUIDE.md)
+- [Troubleshooting](docs/)
+
 ## 📞 Support
 
 For questions or issues:
-- Check Snowflake documentation for Cortex AI
-- Review the SQL comments for implementation details
-- Examine the sample data for usage patterns
+- **First**, check the [`docs/`](docs/) directory for comprehensive guides
+- Review Snowflake documentation for Cortex AI
+- Examine the SQL comments for implementation details
+- Check the sample data for usage patterns
 
 ## 🎃 Fun Facts
 

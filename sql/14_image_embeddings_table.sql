@@ -135,7 +135,7 @@ BEGIN
             )
         ) INTO :ai_desc;
     
-    -- Insert embedding record
+    -- Insert embedding record using SELECT
     INSERT INTO GHOST_IMAGE_EMBEDDINGS (
         embedding_id,
         evidence_id,
@@ -143,20 +143,36 @@ BEGIN
         ghost_id,
         image_path,
         image_description,
+        image_metadata,
         embedding_vector,
+        embedding_model,
+        vector_dimension,
         ai_description,
-        confidence_score
-    ) VALUES (
+        confidence_score,
+        detected_features,
+        ghost_characteristics,
+        created_at,
+        last_searched,
+        search_count
+    )
+    SELECT 
         :embedding_id,
         :evidence_id_param,
         :sighting_id,
         :ghost_id,
         :image_path,
         :image_description_param,
+        NULL,  -- image_metadata
         :embedding_vector_result,
+        'snowflake-arctic-embed-l-v2.0-8k',
+        1024,
         :ai_desc,
-        0.85
-    );
+        0.85,
+        NULL,  -- detected_features
+        NULL,  -- ghost_characteristics
+        CURRENT_TIMESTAMP(),
+        NULL,  -- last_searched
+        0;     -- search_count
     
     RETURN 'Embedding generated: ' || :embedding_id;
 END;
@@ -185,30 +201,27 @@ AS
 $$
 DECLARE
     result RESULTSET;
+    query_vector ARRAY;
 BEGIN
-    LET query_sql := '
+    -- Generate query embedding first
+    SELECT AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', :query_text) INTO :query_vector;
+    
+    -- Execute similarity search directly (no dynamic SQL needed)
+    result := (
         SELECT 
             e.embedding_id,
             e.evidence_id,
             e.ghost_id,
             e.image_description,
-            COSINE_SIMILARITY(
-                e.embedding_vector,
-                AI_EMBED(''snowflake-arctic-embed-l-v2.0-8k'', ?)
-            ) AS similarity_score,
+            COSINE_SIMILARITY(e.embedding_vector, :query_vector) AS similarity_score,
             e.image_path,
             e.ai_description
         FROM GHOST_IMAGE_EMBEDDINGS e
         WHERE e.embedding_vector IS NOT NULL
-          AND COSINE_SIMILARITY(
-                e.embedding_vector,
-                AI_EMBED(''snowflake-arctic-embed-l-v2.0-8k'', ?)
-              ) > 0.5
+          AND COSINE_SIMILARITY(e.embedding_vector, :query_vector) > 0.5
         ORDER BY similarity_score DESC
-        LIMIT ?
-    ';
-    
-    result := (EXECUTE IMMEDIATE :query_sql USING (query_text, query_text, top_k));
+        LIMIT :top_k
+    );
     
     RETURN TABLE(result);
 END;
@@ -236,30 +249,29 @@ AS
 $$
 DECLARE
     result RESULTSET;
+    source_vector ARRAY;
 BEGIN
-    LET query_sql := '
+    -- Get the source embedding vector first
+    SELECT embedding_vector INTO :source_vector
+    FROM GHOST_IMAGE_EMBEDDINGS
+    WHERE embedding_id = :source_embedding_id;
+    
+    -- Execute similarity search directly (no dynamic SQL needed)
+    result := (
         SELECT 
             e.embedding_id,
             e.evidence_id,
             e.ghost_id,
             e.image_description,
-            COSINE_SIMILARITY(
-                e.embedding_vector,
-                (SELECT embedding_vector FROM GHOST_IMAGE_EMBEDDINGS WHERE embedding_id = ?)
-            ) AS similarity_score,
+            COSINE_SIMILARITY(e.embedding_vector, :source_vector) AS similarity_score,
             e.image_path
         FROM GHOST_IMAGE_EMBEDDINGS e
-        WHERE e.embedding_id != ?
+        WHERE e.embedding_id != :source_embedding_id
           AND e.embedding_vector IS NOT NULL
-          AND COSINE_SIMILARITY(
-                e.embedding_vector,
-                (SELECT embedding_vector FROM GHOST_IMAGE_EMBEDDINGS WHERE embedding_id = ?)
-              ) > 0.5
+          AND COSINE_SIMILARITY(e.embedding_vector, :source_vector) > 0.5
         ORDER BY similarity_score DESC
-        LIMIT ?
-    ';
-    
-    result := (EXECUTE IMMEDIATE :query_sql USING (source_embedding_id, source_embedding_id, source_embedding_id, top_k));
+        LIMIT :top_k
+    );
     
     RETURN TABLE(result);
 END;
@@ -280,15 +292,7 @@ $$
 DECLARE
     processed_count INT DEFAULT 0;
     total_count INT;
-    result_cursor CURSOR FOR 
-        SELECT 
-            e.evidence_id,
-            COALESCE(e.description, 'Ghost evidence captured') AS description
-        FROM GHOST_EVIDENCE e
-        LEFT JOIN GHOST_IMAGE_EMBEDDINGS emb ON e.evidence_id = emb.evidence_id
-        WHERE emb.embedding_id IS NULL
-          AND e.evidence_type IN ('Photo', 'Video', 'Thermal Image')
-        LIMIT :batch_size;
+    evidence_list RESULTSET;
     current_evidence_id VARCHAR;
     current_description TEXT;
     embed_result VARCHAR;
@@ -298,11 +302,28 @@ BEGIN
     FROM GHOST_EVIDENCE e
     LEFT JOIN GHOST_IMAGE_EMBEDDINGS emb ON e.evidence_id = emb.evidence_id
     WHERE emb.embedding_id IS NULL
-      AND e.evidence_type IN ('Photo', 'Video', 'Thermal Image');
+      AND e.evidence_type IN ('Photo', 'Video', 'Thermal Image', 'Sensor_Data');
+    
+    -- Get evidence records to process (using RESULTSET)
+    evidence_list := (
+        SELECT 
+            e.evidence_id,
+            COALESCE(
+                CONCAT(e.evidence_type, ' evidence from ', COALESCE(e.file_path, 'unknown location')),
+                'Ghost evidence captured'
+            ) AS description
+        FROM GHOST_EVIDENCE e
+        LEFT JOIN GHOST_IMAGE_EMBEDDINGS emb ON e.evidence_id = emb.evidence_id
+        WHERE emb.embedding_id IS NULL
+          AND e.evidence_type IN ('Photo', 'Video', 'Thermal Image', 'Sensor_Data')
+        LIMIT :batch_size
+    );
+    
+    -- Create cursor from resultset
+    LET c1 CURSOR FOR evidence_list;
     
     -- Process each record
-    OPEN result_cursor;
-    FOR record IN result_cursor DO
+    FOR record IN c1 DO
         current_evidence_id := record.evidence_id;
         current_description := record.description;
         
@@ -311,7 +332,6 @@ BEGIN
         
         processed_count := :processed_count + 1;
     END FOR;
-    CLOSE result_cursor;
     
     RETURN CONCAT('Processed ', :processed_count, ' of ', :total_count, ' image embeddings');
 END;
