@@ -125,13 +125,13 @@ BEGIN
     FROM GHOST_SIGHTINGS
     WHERE ghost_id = :ghost_id_param;
     
-    -- Get all ghost details in one query
+    -- Get all ghost details in one query (use MAX to ensure single row even if duplicates exist)
     SELECT 
-        ghost_name,
-        ghost_type,
-        threat_level,
-        description,
-        origin_story
+        MAX(ghost_name),
+        MAX(ghost_type),
+        MAX(threat_level),
+        MAX(description),
+        MAX(origin_story)
     INTO 
         :ghost_name_var,
         :ghost_type_var,
@@ -139,7 +139,8 @@ BEGIN
         :description_var,
         :origin_story_var
     FROM GHOSTS
-    WHERE ghost_id = :ghost_id_param;
+    WHERE ghost_id = :ghost_id_param
+    GROUP BY ghost_id;
     
     -- Generate comprehensive report using Cortex Complete
     SELECT SNOWFLAKE.CORTEX.COMPLETE(
@@ -214,8 +215,8 @@ BEGIN
             SELECT 
                 s.sighting_id,
                 VECTOR_COSINE_SIMILARITY(
-                    SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', :description_text),
-                    SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
+                    AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', :description_text),
+                    AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
                 ) as similarity_score,
                 s.description
             FROM GHOST_SIGHTINGS s

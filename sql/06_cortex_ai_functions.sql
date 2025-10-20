@@ -258,7 +258,7 @@ SELECT
     ghost_id,
     ghost_name,
     description,
-    SNOWFLAKE.CORTEX.AI_EMBED(
+    AI_EMBED(
         'snowflake-arctic-embed-l-v2.0-8k',
         description
     ) as description_embedding
@@ -269,7 +269,7 @@ LIMIT 5;
 -- This example finds sightings similar to a specific description
 WITH target_sighting AS (
     SELECT 
-        SNOWFLAKE.CORTEX.AI_EMBED(
+        AI_EMBED(
             'snowflake-arctic-embed-l-v2.0-8k',
             'Translucent figure moving books in library'
         ) as target_embedding
@@ -280,7 +280,7 @@ SELECT
     s.description,
     VECTOR_COSINE_SIMILARITY(
         (SELECT target_embedding FROM target_sighting),
-        SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
+        AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
     ) as similarity_score
 FROM GHOST_SIGHTINGS s
 ORDER BY similarity_score DESC

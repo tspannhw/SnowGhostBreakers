@@ -1,8 +1,12 @@
 # 👻 Ghost Detection Streamlit App - Deployment Guide
 
-## Quick Fix for "No module named 'plotly'" Error
+## Quick Fix for Package Errors
 
-If you're seeing `ModuleNotFoundError: No module named 'plotly'`, you need to add plotly to your Streamlit app's packages.
+### Error: "No module named 'plotly'"
+You need to add plotly to your Streamlit app's packages.
+
+### Error: "Package conflicts were detected" or "Cannot create a Python function"
+**Solution:** Don't specify package versions - Snowflake Streamlit includes most packages by default. Only add `plotly` without version numbers.
 
 ---
 
@@ -18,9 +22,8 @@ If you're seeing `ModuleNotFoundError: No module named 'plotly'`, you need to ad
 4. **Add Packages** (Click "Packages" section):
    ```
    plotly
-   pandas
-   numpy
    ```
+   _(Note: pandas, numpy, and snowflake-snowpark-python are auto-included)_
 5. **Copy the code** from `ghost_detection_app.py` into the editor
 6. Click **Run** or **Deploy**
 
@@ -51,7 +54,10 @@ CREATE OR REPLACE STREAMLIT GHOST_DETECTION_APP
     MAIN_FILE = 'ghost_detection_app.py'
     QUERY_WAREHOUSE = 'COMPUTE_WH'
     TITLE = '👻 Ghost Detection System'
-    PACKAGES = ('plotly', 'pandas', 'numpy');
+    PACKAGES = ('plotly');
+    
+-- Note: pandas, numpy, and snowflake-snowpark-python are auto-included
+-- Only specify additional packages you need
 ```
 
 ---
@@ -64,13 +70,16 @@ If you already deployed the app and need to add packages:
 1. Open the Streamlit app in Snowsight
 2. Click **⚙️ Settings** or **Edit**
 3. Go to **Packages** section
-4. Add: `plotly`, `pandas`, `numpy`
+4. Add: `plotly` (only - other packages are auto-included)
 5. Save and restart the app
 
 ### Via SQL:
 ```sql
 ALTER STREAMLIT GHOST_DETECTION_APP 
-    SET PACKAGES = ('plotly', 'pandas', 'numpy');
+    SET PACKAGES = ('plotly');
+    
+-- Don't add pandas, numpy, or snowflake-snowpark-python
+-- They're automatically included and specifying them can cause conflicts
 ```
 
 ---
@@ -79,17 +88,32 @@ ALTER STREAMLIT GHOST_DETECTION_APP
 
 The app requires these packages to run:
 
-| Package | Purpose | Version |
-|---------|---------|---------|
-| `plotly` | Interactive visualizations | ≥5.18.0 |
-| `pandas` | Data manipulation | ≥2.0.0 |
-| `numpy` | Numerical operations | ≥1.24.0 |
-| `snowflake-snowpark-python` | Snowflake connectivity | Pre-installed |
-| `streamlit` | Web framework | Pre-installed |
+| Package | Purpose | Installation |
+|---------|---------|--------------|
+| `plotly` | Interactive visualizations | **Add this in PACKAGES** |
+| `pandas` | Data manipulation | Auto-included ✅ |
+| `numpy` | Numerical operations | Auto-included ✅ |
+| `snowflake-snowpark-python` | Snowflake connectivity | Auto-included ✅ |
+| `streamlit` | Web framework | Auto-included ✅ |
+
+**Important:** Only specify `plotly` in the PACKAGES parameter. Do NOT specify versions (like `plotly==6.3.0`) as this causes conflicts.
 
 ---
 
 ## Troubleshooting
+
+### Error: "Package conflicts were detected"
+**Full Error:** `Cannot create a Python function with the specified packages. One or more package conflicts were detected.`
+
+**Solution:** Remove all packages except `plotly` from your PACKAGES list:
+```sql
+ALTER STREAMLIT GHOST_DETECTION_APP SET PACKAGES = ('plotly');
+```
+
+**Why this happens:**
+- Snowflake Streamlit auto-includes pandas, numpy, and snowflake-snowpark-python
+- Specifying them explicitly (especially with versions) causes conflicts
+- Only add packages that aren't already included
 
 ### Error: "No module named 'plotly'"
 **Solution:** Add `plotly` to the PACKAGES list (see options above)

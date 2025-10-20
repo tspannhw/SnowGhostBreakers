@@ -3,10 +3,11 @@ Ghost Detection and Analysis Application
 Streamlit Application for Snowflake
 
 Required packages (for Snowflake Streamlit):
-- snowflake-snowpark-python
-- pandas
+- snowflake-snowpark-python (auto-included)
+- pandas (auto-included)
 - plotly
-- streamlit
+- nbformat
+- geopy
 """
 
 # When deploying to Snowflake, ensure these packages are available:
@@ -170,33 +171,61 @@ if page == "📊 Dashboard":
     
     # Hotspots map
     st.subheader("🗺️ Paranormal Hotspots")
-    hotspots_df = session.table("GHOST_DETECTION.ANALYTICS.VW_PARANORMAL_HOTSPOTS").to_pandas()
-    if not hotspots_df.empty and 'LATITUDE' in hotspots_df.columns:
-        # Filter out rows with missing coordinates
-        hotspots_valid = hotspots_df.dropna(subset=['LATITUDE', 'LONGITUDE'])
+    try:
+        hotspots_df = session.table("GHOST_DETECTION.ANALYTICS.VW_PARANORMAL_HOTSPOTS").to_pandas()
         
-        if not hotspots_valid.empty:
-            try:
-                fig = px.scatter_mapbox(
-                    hotspots_valid,
-                    lat='LATITUDE',
-                    lon='LONGITUDE',
-                    size='TOTAL_SIGHTINGS',
-                    color='HOTSPOT_CLASSIFICATION',
-                    hover_name='LOCATION_NAME',
-                    hover_data=['TOTAL_SIGHTINGS', 'UNIQUE_GHOSTS', 'AVG_ACTIVITY_LEVEL'],
-                    zoom=10,
-                    mapbox_style="open-street-map",  # Changed to open-street-map
-                    height=400
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                # Fallback to simple map
-                simple_map = hotspots_valid[['LATITUDE', 'LONGITUDE']].copy()
-                simple_map.columns = ['lat', 'lon']
-                st.map(simple_map, zoom=10)
+        if hotspots_df.empty:
+            st.info("ℹ️ No hotspot data available yet. Add sightings with coordinates first.")
+        elif 'LATITUDE' not in hotspots_df.columns or 'LONGITUDE' not in hotspots_df.columns:
+            st.warning("⚠️ Coordinate columns missing. Check VW_PARANORMAL_HOTSPOTS view.")
         else:
-            st.info("No hotspot coordinates available yet.")
+            # Clean and validate coordinates
+            hotspots_valid = hotspots_df.dropna(subset=['LATITUDE', 'LONGITUDE']).copy()
+            hotspots_valid['LATITUDE'] = pd.to_numeric(hotspots_valid['LATITUDE'], errors='coerce')
+            hotspots_valid['LONGITUDE'] = pd.to_numeric(hotspots_valid['LONGITUDE'], errors='coerce')
+            hotspots_valid = hotspots_valid.dropna(subset=['LATITUDE', 'LONGITUDE'])
+            hotspots_valid = hotspots_valid[
+                (hotspots_valid['LATITUDE'].between(-90, 90)) & 
+                (hotspots_valid['LONGITUDE'].between(-180, 180))
+            ]
+            
+            if hotspots_valid.empty:
+                st.info("ℹ️ No valid coordinates found. Add latitude/longitude to your sightings.")
+                st.code("UPDATE GHOST_SIGHTINGS SET latitude = 40.7128, longitude = -74.0060 WHERE ...", language="sql")
+            else:
+                st.success(f"✅ Found {len(hotspots_valid)} hotspots with coordinates")
+                
+                # Try Plotly scatter mapbox
+                try:
+                    fig = px.scatter_mapbox(
+                        hotspots_valid,
+                        lat='LATITUDE',
+                        lon='LONGITUDE',
+                        size='TOTAL_SIGHTINGS' if 'TOTAL_SIGHTINGS' in hotspots_valid.columns else None,
+                        color='HOTSPOT_CLASSIFICATION' if 'HOTSPOT_CLASSIFICATION' in hotspots_valid.columns else None,
+                        hover_name='LOCATION_NAME' if 'LOCATION_NAME' in hotspots_valid.columns else None,
+                        zoom=2,
+                        height=500,
+                        mapbox_style="open-street-map"
+                    )
+                    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                except Exception as plotly_err:
+                    # Fallback to Streamlit's simple map
+                    st.info(f"📍 Using simple map (plotly: {str(plotly_err)[:50]}...)")
+                    map_data = hotspots_valid[['LATITUDE', 'LONGITUDE']].copy()
+                    map_data.columns = ['lat', 'lon']
+                    st.map(map_data)
+                
+                # Show location details
+                with st.expander("📋 View Hotspot Details"):
+                    display_cols = [c for c in ['LOCATION_NAME', 'LATITUDE', 'LONGITUDE', 'TOTAL_SIGHTINGS', 'UNIQUE_GHOSTS'] 
+                                   if c in hotspots_valid.columns]
+                    st.dataframe(hotspots_valid[display_cols], use_container_width=True)
+    except Exception as e:
+        st.error(f"❌ Map error: {str(e)}")
+        st.info("💡 Make sure VW_PARANORMAL_HOTSPOTS view exists with LATITUDE and LONGITUDE columns")
 
 # ============================================
 # PAGE: GHOST REGISTRY
@@ -314,12 +343,17 @@ elif page == "📍 Sightings":
     try:
         map_df = session.sql(map_query).to_pandas()
         
-        if not map_df.empty:
-            # Filter out rows with missing coordinates
-            map_df_valid = map_df.dropna(subset=['LATITUDE', 'LONGITUDE'])
+        if map_df.empty:
+            st.info("ℹ️ No sightings with coordinates found. Add latitude/longitude to your sightings!")
+            st.code("UPDATE GHOST_DETECTION.APP.GHOST_SIGHTINGS SET latitude = 40.7128, longitude = -74.0060 WHERE ...", language="sql")
+        else:
+            # Filter and validate coordinates
+            map_df_valid = map_df.dropna(subset=['LATITUDE', 'LONGITUDE']).copy()
+            map_df_valid['LATITUDE'] = pd.to_numeric(map_df_valid['LATITUDE'], errors='coerce')
+            map_df_valid['LONGITUDE'] = pd.to_numeric(map_df_valid['LONGITUDE'], errors='coerce')
+            map_df_valid = map_df_valid.dropna(subset=['LATITUDE', 'LONGITUDE'])
             
-            # Debug info (optional - comment out in production)
-            st.write(f"📊 Found {len(map_df_valid)} sightings with coordinates")
+            st.success(f"✅ Found {len(map_df_valid)} sightings with valid coordinates")
             
             if not map_df_valid.empty:
                 # Calculate center point for better map positioning
@@ -356,19 +390,14 @@ elif page == "📍 Sightings":
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
-                    st.success("✅ Plotly map loaded successfully!")
                     
                 except Exception as plotly_error:
-                    st.warning(f"⚠️ Plotly map error: {str(plotly_error)}")
-                    st.info("🔄 Trying alternative map method...")
-                    
-                    # Method 2: Fallback to Streamlit's built-in map
+                    # Fallback to Streamlit's built-in map
+                    st.info(f"📍 Using simple map view (plotly: {str(plotly_error)[:50]}...)")
                     try:
-                        st.write("**📍 Sighting Locations:**")
                         simple_map_df = map_df_valid[['LATITUDE', 'LONGITUDE']].copy()
                         simple_map_df.columns = ['lat', 'lon']
                         st.map(simple_map_df, zoom=3)
-                        st.success("✅ Simple map loaded!")
                         
                         # Show location details
                         with st.expander("📋 View Sighting Details"):
@@ -376,25 +405,16 @@ elif page == "📍 Sightings":
                                 st.write(f"📍 **{row['LOCATION_NAME']}** - {row['GHOST_NAME']} ({row['GHOST_TYPE']}) - Activity: {row['PARANORMAL_ACTIVITY_LEVEL']}/10")
                     
                     except Exception as simple_error:
-                        st.error(f"❌ Simple map also failed: {str(simple_error)}")
-                        
-                        # Method 3: Just show coordinates as table
-                        st.write("**Fallback: Showing coordinates as table**")
+                        # Final fallback: show as table
+                        st.warning(f"⚠️ Map display failed. Showing coordinates as table.")
                         display_df = map_df_valid[['LOCATION_NAME', 'GHOST_NAME', 'GHOST_TYPE', 'LATITUDE', 'LONGITUDE', 'PARANORMAL_ACTIVITY_LEVEL']]
-                        st.dataframe(display_df)
+                        st.dataframe(display_df, use_container_width=True)
             else:
-                st.info("ℹ️ No sightings with valid coordinates available. Add latitude/longitude when reporting new sightings!")
-        else:
-            st.info("ℹ️ No sightings with location coordinates found in database.")
-            st.write("**💡 Tip:** Add coordinates when creating new sightings or run sample data:")
-            st.code("snowsql -f sql/03_sample_data.sql", language="bash")
+                st.info("ℹ️ No valid coordinates after filtering. Check data quality.")
     
     except Exception as e:
-        st.error(f"❌ Error loading map data: {str(e)}")
-        st.write("**Debug Info:**")
-        st.write(f"- Error type: {type(e).__name__}")
-        st.write(f"- Error message: {str(e)}")
-        st.info("💡 Make sure the GHOST_SIGHTINGS and GHOSTS tables exist and have data with coordinates.")
+        st.error(f"❌ Error loading map: {str(e)}")
+        st.info("💡 Make sure GHOST_SIGHTINGS table exists with LATITUDE and LONGITUDE columns.")
     
     st.markdown("---")
     
@@ -1544,8 +1564,13 @@ elif page == "➕ New Sighting":
                 if geocode_input:
                     with st.spinner("Looking up coordinates..."):
                         try:
-                            from geopy.geocoders import Nominatim
-                            from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+                            try:
+                                from geopy.geocoders import Nominatim
+                                from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+                            except ImportError:
+                                st.error("❌ Geocoding feature requires 'geopy' package")
+                                st.info("💡 Add 'geopy' to your Streamlit app packages in Snowsight UI, or enter coordinates manually below.")
+                                st.stop()
                             import time
                             
                             # Function to geocode with retry logic
@@ -1764,7 +1789,7 @@ elif page == "➕ New Sighting":
                                             
                                             # Create AI embedding vector
                                             embedding_query = f"""
-                                            SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+                                            SELECT AI_EMBED(
                                                 'snowflake-arctic-embed-l-v2.0-8k',
                                                 '{analysis_text.replace("'", "''")[:5000]}'
                                             ) as embedding_vector

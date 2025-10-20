@@ -149,7 +149,7 @@ RETURNS TABLE (
 AS
 $$
     WITH query_embedding AS (
-        SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+        SELECT AI_EMBED(
             'snowflake-arctic-embed-l-v2.0-8k',
             query_text
         ) as embedding
@@ -160,7 +160,7 @@ $$
             s.location_name,
             s.description,
             g.ghost_name,
-            SNOWFLAKE.CORTEX.AI_EMBED(
+            AI_EMBED(
                 'snowflake-arctic-embed-l-v2.0-8k',
                 s.description
             ) as embedding

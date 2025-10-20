@@ -214,7 +214,7 @@ class TestCortexEmbeddings:
         mock_session.sql.return_value.collect.return_value = [(mock_embedding,)]
         
         query = """
-        SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+        SELECT AI_EMBED(
             'snowflake-arctic-embed-l-v2.0-8k',
             'Lady in White apparition at midnight'
         ) as embedding
@@ -236,7 +236,7 @@ class TestCortexEmbeddings:
         
         query = """
         WITH target AS (
-            SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+            SELECT AI_EMBED(
                 'snowflake-arctic-embed-l-v2.0-8k',
                 'Shadow entity with electronic interference'
             ) as target_embedding
@@ -283,7 +283,7 @@ class TestCortexEmbeddings:
         FROM GHOST_SIGHTINGS
         WHERE VECTOR_COSINE_SIMILARITY(
             description_embedding,
-            SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', 'dark figure in cellar')
+            AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', 'dark figure in cellar')
         ) > 0.8
         """
         

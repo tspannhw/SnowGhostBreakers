@@ -34,10 +34,11 @@ geopy>=2.4.0
 cryptography>=41.0.0
 # Note: asyncio is built-in to Python 3.4+, no need to install
 
-# Jupyter notebook support (optional)
+# Jupyter notebook support (required for plotly in notebooks)
 jupyter>=1.0.0
 ipykernel>=6.25.0
 notebook>=7.0.0
+nbformat>=4.2.0
 
 # Testing (optional)
 pytest>=7.4.0

@@ -27,7 +27,7 @@ WITH image_metadata AS (
     WHERE e.evidence_type = 'Image'
 ),
 target_search AS (
-    SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+    SELECT AI_EMBED(
         'snowflake-arctic-embed-l-v2.0-8k',
         'Shadow entity with electronic interference'
     ) as target_embedding
@@ -39,7 +39,7 @@ SELECT
     im.file_path,
     VECTOR_COSINE_SIMILARITY(
         (SELECT target_embedding FROM target_search),
-        SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', im.search_text)
+        AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', im.search_text)
     ) as similarity_score
 FROM image_metadata im
 ORDER BY similarity_score DESC

@@ -200,7 +200,7 @@ class GhostAnalytics:
         """
         query = f"""
         WITH target AS (
-            SELECT SNOWFLAKE.CORTEX.AI_EMBED(
+            SELECT AI_EMBED(
                 'snowflake-arctic-embed-l-v2.0-8k',
                 '{description}'
             ) as embedding
@@ -212,7 +212,7 @@ class GhostAnalytics:
             g.ghost_name,
             VECTOR_COSINE_SIMILARITY(
                 (SELECT embedding FROM target),
-                SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
+                AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', s.description)
             ) as similarity
         FROM GHOST_SIGHTINGS s
         JOIN GHOSTS g ON s.ghost_id = g.ghost_id

@@ -519,8 +519,8 @@ $$
         term_name,
         definition,
         VECTOR_COSINE_SIMILARITY(
-            SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', search_term),
-            SNOWFLAKE.CORTEX.AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', term_name || ' ' || definition)
+            AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', search_term),
+            AI_EMBED('snowflake-arctic-embed-l-v2.0-8k', term_name || ' ' || definition)
         ) as relevance_score
     FROM BUSINESS_VOCABULARY
     WHERE relevance_score > 0.6
