@@ -6,6 +6,9 @@ A comprehensive Snowflake-native application for detecting, tracking, and analyz
 
 SnowGhost Breakers is a complete paranormal investigation system that demonstrates the power of Snowflake's data platform combined with Cortex AI capabilities. The application handles ghost sightings, evidence analysis, investigation management, and AI-powered insights.
 
+![Ghostbreaker](photos/ghosts/getmesnowflake.jpg)
+![Ghostbreaker](photos/ghosts/ghostbustersteam.jpg)
+
 ## ✨ Features
 
 - **📊 Comprehensive Data Model**: Tables for ghosts, sightings, evidence, investigations, and sensor readings
@@ -370,6 +373,20 @@ See [`docs/README.md`](docs/README.md) for the complete documentation index.
 - [SnowBreakers Chat Guide](docs/SNOWBREAKERS_CHAT_GUIDE.md)
 - [Troubleshooting](docs/)
 
+# Ghosts
+Ghosts
+
+![halloween4](https://github.com/user-attachments/assets/636a3188-bf5b-4530-88db-4f26b6e7870c)
+
+
+### References
+
+* https://medium.com/@tspann/ghosts-are-unstructured-data-i-e31b34c0d9e4
+* https://github.com/tspannhw/AIM-Ghosts/
+* https://github.com/tspannhw/FLaNK-python-processors/tree/main
+* https://github.com/tspannhw/TrafficAI
+
+
 ## 📞 Support
 
 For questions or issues:
@@ -390,5 +407,6 @@ For questions or issues:
 **Who you gonna call? SnowGhost Breakers!** 👻🚫
 
 *Powered by Snowflake Cortex AI*
+Tim Spann - Prompt Engineer, AI Hacker, Senior Solution Engineer, Paranormal Investigator
 
  🎉👻✨
