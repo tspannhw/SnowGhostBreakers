@@ -10,6 +10,8 @@ SnowGhost Breakers is a complete paranormal investigation system that demonstrat
 
 https://www.snowghostbreakers.com/
 
+<img width="1024" height="1024" alt="SnowGhostBreakers" src="https://github.com/user-attachments/assets/2c711340-4861-4958-9c5f-3cc89cc395df" />
+
 
 ## ✨ Features
 
