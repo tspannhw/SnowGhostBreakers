@@ -8,6 +8,9 @@ A comprehensive Snowflake-native application for detecting, tracking, and analyz
 
 SnowGhost Breakers is a complete paranormal investigation system that demonstrates the power of Snowflake's data platform combined with Cortex AI capabilities. The application handles ghost sightings, evidence analysis, investigation management, and AI-powered insights.
 
+https://www.snowghostbreakers.com/
+
+
 ## ✨ Features
 
 - **📊 Comprehensive Data Model**: Tables for ghosts, sightings, evidence, investigations, and sensor readings
