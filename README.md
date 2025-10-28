@@ -459,6 +459,39 @@ add column investigation_status varchar(25000);
 
 ````
 
+### Example Description of Photos
+
+
+```json
+{
+  "image_type": "paranormal_sighting",
+  "primary_subject": "ghostly_apparition",
+  "description": {
+    "entity": "pale_female_figure_with_long_white_hair",
+    "appearance": "translucent_ethereal_being",
+    "hair": "flowing_white_hair_with_motion_blur",
+    "face": "pale_ghostly_complexion_looking_downward",
+    "position": "emerging_from_or_through_ornate_mirror"
+  },
+  "environment": {
+    "setting": "dark_interior_room",
+    "wall_color": "dark_green",
+    "focal_object": "ornate_baroque_style_mirror",
+    "frame_details": "elaborate_gold_decorative_frame_with_scrollwork"
+  },
+  "paranormal_characteristics": {
+    "transparency": "semi_translucent",
+    "motion": "hair_appears_to_be_moving",
+    "lighting": "supernatural_glow_around_figure",
+    "classic_ghost_traits": ["white_coloring", "ethereal_quality", "mirror_manifestation"]
+  },
+  "atmosphere": "eerie_haunting_ominous",
+  "likely_explanation": "staged_photo_or_artistic_creation_using_long_exposure_double_exposure_or_digital_manipulation"
+}
+```
+
+
+
 ### References
 
 * https://medium.com/@tspann/ghosts-are-unstructured-data-i-e31b34c0d9e4
