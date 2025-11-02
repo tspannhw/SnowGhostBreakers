@@ -1,3 +1,6 @@
+ 🎃👻
+
+
 ````
 
    SELECT SNOWFLAKE.CORTEX.COMPLETE('pixtral-large', 
