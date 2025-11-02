@@ -1,0 +1,650 @@
+name: SNOWGHOST_BREAKERS_ANALYTICS
+description: Semantic model for ghost detection and paranormal investigation analytics
+tables:
+  - name: GHOSTS
+    synonyms:
+      - ghost
+      - spectre
+    description: Master registry of detected ghosts
+    base_table:
+      database: GHOST_DETECTION
+      schema: APP
+      table: GHOSTS
+    dimensions:
+      - name: GHOST_ID
+        synonyms:
+          - entity id
+          - ghost identifier
+        description: Unique identifier for each ghost
+        expr: GHOST_ID
+        data_type: VARCHAR(50)
+        sample_values:
+          - GH002
+          - GH001
+          - GH003
+      - name: GHOST_NAME
+        synonyms:
+          - entity name
+          - ghost name
+        description: Name or designation of the ghost
+        expr: GHOST_NAME
+        data_type: VARCHAR(200)
+        sample_values:
+          - Shadow Walker
+          - The Library Apparition
+          - Slimer
+      - name: GHOST_TYPE
+        synonyms:
+          - entity type
+          - spirit type
+        description: Classification of ghost type
+        expr: GHOST_TYPE
+        data_type: VARCHAR(100)
+        sample_values:
+          - Poltergeist
+          - Shadow Person
+          - Residual Haunting
+          - Intelligent Spirit
+      - name: STATUS
+        synonyms:
+          - entity status
+          - ghost status
+        description: Current status of the ghost
+        expr: STATUS
+        data_type: VARCHAR(50)
+        sample_values:
+          - Active
+          - Dormant
+          - Neutralized
+      - name: THREAT_LEVEL
+        synonyms:
+          - danger level
+          - risk level
+        description: Assessed threat level
+        expr: THREAT_LEVEL
+        data_type: VARCHAR(20)
+        sample_values:
+          - Low
+          - Medium
+          - High
+          - Extreme
+    facts:
+      - name: CONFIDENCE_SCORE
+        synonyms:
+          - certainty score
+          - detection confidence
+        description: AI confidence in ghost detection
+        expr: CONFIDENCE_SCORE
+        data_type: FLOAT
+        access_modifier: public_access
+        default_aggregation: avg
+        sample_values:
+          - '0.85'
+          - '0.98'
+          - '0.92'
+    primary_key:
+      columns:
+        - GHOST_ID
+  - name: GHOST_SIGHTINGS
+    synonyms:
+      - sighting
+    description: Individual ghost sighting events
+    base_table:
+      database: GHOST_DETECTION
+      schema: APP
+      table: GHOST_SIGHTINGS
+    dimensions:
+      - name: DESCRIPTION
+        synonyms:
+          - encounter description
+          - event details
+        description: Detailed description of sighting
+        expr: DESCRIPTION
+        data_type: VARCHAR(16777216)
+      - name: GHOST_ID
+        synonyms:
+          - ghost identifier
+        description: Associated ghost entity
+        expr: GHOST_ID
+        data_type: VARCHAR(50)
+      - name: LOCATION_NAME
+        synonyms:
+          - haunted location
+          - site name
+        description: Location where sighting occurred
+        expr: LOCATION_NAME
+        data_type: VARCHAR(200)
+      - name: SIGHTING_DATETIME
+        synonyms:
+          - encounter time
+          - event time
+        description: Date and time of sighting
+        expr: SIGHTING_DATETIME
+        data_type: TIMESTAMP_NTZ(9)
+        sample_values:
+          - 2024-11-08T13:43:45.516+0000
+          - 2024-11-05T13:43:45.528+0000
+          - 2025-03-19T13:43:45.530+0000
+      - name: SIGHTING_ID
+        synonyms:
+          - encounter id
+          - event id
+        description: Unique identifier for sighting
+        expr: SIGHTING_ID
+        data_type: VARCHAR(50)
+      - name: VERIFIED
+        synonyms:
+          - confirmed
+          - validated
+        description: Whether sighting was verified
+        expr: VERIFIED
+        data_type: BOOLEAN
+      - name: WITNESS_NAME
+        synonyms:
+          - observer name
+          - reporter name
+        description: Name of witness
+        expr: WITNESS_NAME
+        data_type: VARCHAR(200)
+    facts:
+      - name: EMF_READING
+        synonyms:
+          - electromagnetic field
+          - EMF level
+        description: EMF reading during sighting
+        expr: EMF_READING
+        data_type: FLOAT
+        access_modifier: public_access
+        default_aggregation: avg
+        sample_values:
+          - '17.41'
+          - '0.04'
+          - '19.99'
+      - name: LATITUDE
+        synonyms:
+          - GPS latitude
+          - lat
+        description: Geographic latitude
+        expr: LATITUDE
+        data_type: FLOAT
+        access_modifier: public_access
+        default_aggregation: avg
+        sample_values:
+          - '48.852684845'
+          - '51.5094223'
+          - '48.86317475'
+      - name: LONGITUDE
+        synonyms:
+          - GPS longitude
+          - lon
+        description: Geographic longitude
+        expr: LONGITUDE
+        data_type: FLOAT
+        access_modifier: public_access
+        default_aggregation: avg
+        sample_values:
+          - '139.652787081'
+          - '-73.9822'
+          - '-73.976085714'
+      - name: PARANORMAL_ACTIVITY_LEVEL
+        synonyms:
+          - activity intensity
+          - manifestation strength
+        description: Paranormal activity intensity on 1-10 scale
+        expr: PARANORMAL_ACTIVITY_LEVEL
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        default_aggregation: avg
+        sample_values:
+          - '8'
+          - '5'
+          - '3'
+      - name: TEMPERATURE_CELSIUS
+        synonyms:
+          - temp reading
+          - temperature
+        description: Temperature at time of sighting
+        expr: TEMPERATURE_CELSIUS
+        data_type: FLOAT
+        access_modifier: public_access
+        default_aggregation: avg
+        sample_values:
+          - '20.1'
+          - '16.9'
+          - '23.8'
+    primary_key:
+      columns:
+        - SIGHTING_ID
+  - name: INVESTIGATIONS
+    synonyms: []
+    description: Ghost investigation cases
+    base_table:
+      database: GHOST_DETECTION
+      schema: APP
+      table: INVESTIGATIONS
+    dimensions:
+      - name: CASE_NAME
+        synonyms:
+          - case title
+          - investigation name
+        description: Name of investigation case
+        expr: CASE_NAME
+        data_type: VARCHAR(300)
+      - name: END_DATE
+        synonyms:
+          - case end
+          - closed date
+        description: Date investigation ended
+        expr: END_DATE
+        data_type: DATE
+      - name: GHOST_ID
+        synonyms:
+          - entity id
+          - ghost identifier
+        description: Associated ghost entity
+        expr: GHOST_ID
+        data_type: VARCHAR(50)
+      - name: INVESTIGATION_ID
+        synonyms:
+          - case id
+          - case number
+        description: Unique identifier for investigation
+        expr: INVESTIGATION_ID
+        data_type: VARCHAR(50)
+      - name: LEAD_INVESTIGATOR_ID
+        synonyms:
+          - investigator id
+          - lead investigator
+        description: Lead investigator for case
+        expr: LEAD_INVESTIGATOR_ID
+        data_type: VARCHAR(50)
+      - name: OUTCOME
+        synonyms:
+          - case result
+          - result
+        description: Outcome of investigation
+        expr: OUTCOME
+        data_type: VARCHAR(16777216)
+      - name: PRIORITY
+        synonyms:
+          - importance
+          - urgency
+        description: Priority level of case
+        expr: PRIORITY
+        data_type: VARCHAR(20)
+        sample_values:
+          - Low
+          - Medium
+          - High
+          - Critical
+      - name: START_DATE
+        synonyms:
+          - case start
+          - opened date
+        description: Date investigation started
+        expr: START_DATE
+        data_type: DATE
+      - name: STATUS
+        synonyms:
+          - case status
+          - investigation status
+        description: Current status of investigation
+        expr: STATUS
+        data_type: VARCHAR(50)
+        sample_values:
+          - Open
+          - In_Progress
+          - Closed
+          - On_Hold
+    facts:
+      - name: EVIDENCE_COUNT
+        synonyms:
+          - number of evidence
+          - proof items
+        description: Number of evidence items collected
+        expr: EVIDENCE_COUNT
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        default_aggregation: sum
+    primary_key:
+      columns:
+        - INVESTIGATION_ID
+  - name: INVESTIGATORS
+    synonyms: []
+    description: SnowGhost Breakers team members
+    base_table:
+      database: GHOST_DETECTION
+      schema: APP
+      table: INVESTIGATORS
+    dimensions:
+      - name: ACTIVE_STATUS
+        synonyms:
+          - active
+          - employment status
+        description: Whether investigator is currently active
+        expr: ACTIVE_STATUS
+        data_type: BOOLEAN
+      - name: EMAIL
+        synonyms:
+          - contact email
+          - email address
+        description: Email address
+        expr: EMAIL
+        data_type: VARCHAR(200)
+        sample_values:
+          - rstantz@ghostbusters.com
+          - pvenkman@ghostbusters.com
+          - espengler@ghostbusters.com
+      - name: INVESTIGATOR_ID
+        synonyms:
+          - investigator identifier
+          - team member id
+        description: Unique identifier for investigator
+        expr: INVESTIGATOR_ID
+        data_type: VARCHAR(50)
+        sample_values:
+          - INV001
+          - INV003
+          - INV002
+      - name: INVESTIGATOR_NAME
+        synonyms:
+          - staff name
+          - team member name
+        description: Name of investigator
+        expr: INVESTIGATOR_NAME
+        data_type: VARCHAR(200)
+        sample_values:
+          - Dr. Peter Venkman
+          - Dr. Egon Spengler
+          - Data Dr. Tim Spann
+      - name: PHONE
+        synonyms:
+          - contact number
+          - phone number
+        description: Phone number
+        expr: PHONE
+        data_type: VARCHAR(50)
+        sample_values:
+          - 600-123-1234
+      - name: SPECIALIZATION
+        synonyms:
+          - expertise
+          - specialty
+        description: Area of expertise
+        expr: SPECIALIZATION
+        data_type: VARCHAR(100)
+        sample_values:
+          - EMF Expert
+          - Medium
+          - Technician
+          - Lead Investigator
+    facts:
+      - name: CASES_SOLVED
+        synonyms:
+          - completed cases
+          - solved cases
+        description: Number of cases successfully solved
+        expr: CASES_SOLVED
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        default_aggregation: sum
+        sample_values:
+          - '127'
+          - '145'
+          - '156'
+      - name: EXPERIENCE_YEARS
+        synonyms:
+          - seniority
+          - years of experience
+        description: Years of paranormal investigation experience
+        expr: EXPERIENCE_YEARS
+        data_type: NUMBER(38,0)
+        access_modifier: public_access
+        default_aggregation: avg
+        sample_values:
+          - '20'
+          - '15'
+          - '18'
+    primary_key:
+      columns:
+        - INVESTIGATOR_ID
+relationships:
+  - name: GHOST_TO_SIGHTING
+    left_table: GHOST_SIGHTINGS
+    relationship_columns:
+      - left_column: GHOST_ID
+        right_column: GHOST_ID
+    right_table: GHOSTS
+  - name: INVESTIGATOR_INVESTIGATION
+    left_table: INVESTIGATIONS
+    relationship_columns:
+      - left_column: LEAD_INVESTIGATOR_ID
+        right_column: INVESTIGATOR_ID
+    right_table: INVESTIGATORS
+  - name: GHOST_TO_INVESTIGATION
+    left_table: INVESTIGATIONS
+    relationship_columns:
+      - left_column: GHOST_ID
+        right_column: GHOST_ID
+    right_table: GHOSTS
+verified_queries:
+  - name: What is the average confidence score for each ghost type?
+    question: What is the average confidence score for each ghost type?
+    sql: |-
+      SELECT
+        ghost_type,
+        AVG(confidence_score) AS avg_confidence_score
+      FROM
+        ghosts
+      GROUP BY
+        ghost_type
+      ORDER BY
+        avg_confidence_score DESC NULLS LAST
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1761677319
+  - name: What is the total number of cases solved by investigators with EMF Expert specialization?
+    question: What is the total number of cases solved by investigators with EMF Expert specialization?
+    sql: |-
+      SELECT
+        SUM(cases_solved) AS total_cases_solved
+      FROM
+        investigators
+      WHERE
+        specialization = 'EMF Expert'
+    use_as_onboarding_question: true
+    verified_by: Timothy Spann
+    verified_at: 1761678248
+  - name: Show me all active ghosts with high or extreme threat levels
+    question: Show me all active ghosts with high or extreme threat levels
+    sql: |-
+      SELECT
+        ghost_id,
+        ghost_name,
+        ghost_type,
+        status,
+        threat_level,
+        confidence_score
+      FROM
+        ghosts
+      WHERE
+        status = 'Active'
+        AND threat_level IN ('High', 'Extreme')
+      ORDER BY
+        threat_level DESC NULLS LAST
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1761678337
+  - name: What were the most recent ghost sightings?
+    question: What were the most recent ghost sightings?
+    sql: |-
+      SELECT
+        sighting_id,
+        ghost_id,
+        location_name,
+        sighting_datetime,
+        witness_name,
+        description,
+        verified,
+        emf_reading,
+        temperature_celsius,
+        paranormal_activity_level,
+        latitude,
+        longitude
+      FROM
+        ghost_sightings
+      ORDER BY
+        sighting_datetime DESC NULLS LAST
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1761678363
+  - name: Which locations are critical paranormal hotspots?
+    question: Which locations are critical paranormal hotspots?
+    sql: |-
+      SELECT
+        location_name,
+        COUNT(*) AS total_sightings,
+        COUNT(
+          CASE
+            WHEN verified = TRUE THEN 1
+          END
+        ) AS verified_sightings,
+        AVG(paranormal_activity_level) AS avg_paranormal_activity,
+        AVG(emf_reading) AS avg_emf_reading
+      FROM
+        ghost_sightings
+      WHERE
+        NOT location_name IS NULL
+      GROUP BY
+        location_name
+      ORDER BY
+        avg_paranormal_activity DESC NULLS LAST,
+        total_sightings DESC NULLS LAST
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1761679092
+  - name: Open High Priority Cases
+    question: Open High Priority Cases
+    sql: |-
+      SELECT
+        investigation_id,
+        case_name,
+        status,
+        priority,
+        ghost_id,
+        lead_investigator_id,
+        start_date,
+        end_date,
+        outcome,
+        evidence_count
+      FROM
+        investigations
+      WHERE
+        status = 'Open'
+        AND priority = 'High'
+      ORDER BY
+        start_date DESC NULLS LAST
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1761679297
+  - name: Show me ghost activity trends by month
+    question: Show me ghost activity trends by month
+    sql: |-
+      SELECT
+        DATE_TRUNC('MONTH', sighting_datetime) AS month,
+        MIN(sighting_datetime) AS start_date,
+        MAX(sighting_datetime) AS end_date,
+        COUNT(sighting_id) AS sighting_count
+      FROM
+        ghost_sightings
+      GROUP BY
+        DATE_TRUNC('MONTH', sighting_datetime)
+      ORDER BY
+        month DESC NULLS LAST
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1761917925
+  - name: Show me all ghosts with their threat levels, focusing on the highest threat level ghosts
+    question: Show me all ghosts with their threat levels, focusing on the highest threat level ghosts
+    sql: |-
+      SELECT
+        ghost_id,
+        ghost_name,
+        ghost_type,
+        status,
+        threat_level,
+        confidence_score,
+        COUNT(*) OVER () AS total_ghosts,
+        MIN(threat_level) OVER () AS min_threat_level,
+        MAX(threat_level) OVER () AS max_threat_level,
+        COUNT(DISTINCT threat_level) OVER () AS distinct_threat_levels
+      FROM
+        ghosts
+      ORDER BY
+        CASE
+          WHEN threat_level = 'Extreme' THEN 1
+          WHEN threat_level = 'High' THEN 2
+          WHEN threat_level = 'Medium' THEN 3
+          WHEN threat_level = 'Low' THEN 4
+          ELSE 5
+        END,
+        ghost_name
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1762049231
+  - name: Show all ghosts ordered by threat level from highest to lowest with their details
+    question: Show all ghosts ordered by threat level from highest to lowest with their details
+    sql: |-
+      SELECT
+        ghost_id,
+        ghost_name,
+        ghost_type,
+        status,
+        threat_level,
+        confidence_score,
+        COUNT(*) OVER () AS total_ghosts,
+        COUNT(DISTINCT threat_level) OVER () AS distinct_threat_levels
+      FROM
+        ghosts
+      ORDER BY
+        CASE
+          WHEN threat_level = 'Extreme' THEN 1
+          WHEN threat_level = 'High' THEN 2
+          WHEN threat_level = 'Medium' THEN 3
+          WHEN threat_level = 'Low' THEN 4
+          ELSE 5
+        END,
+        ghost_name
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1762049238
+  - name: What is the scariest ghost with the highest threat level?
+    question: What is the scariest ghost with the highest threat level?
+    sql: |-
+      SELECT
+        ghost_id,
+        ghost_name,
+        ghost_type,
+        status,
+        threat_level,
+        confidence_score,
+        COUNT(*) OVER () AS total_ghosts,
+        COUNT(DISTINCT ghost_type) OVER () AS distinct_ghost_types,
+        MIN(threat_level) OVER () AS min_threat_level,
+        MAX(threat_level) OVER () AS max_threat_level,
+        COUNT(DISTINCT threat_level) OVER () AS distinct_threat_levels
+      FROM
+        ghosts
+      WHERE
+        threat_level = (
+          SELECT
+            MAX(threat_level)
+          FROM
+            ghosts
+        )
+      ORDER BY
+        confidence_score DESC NULLS LAST,
+        ghost_name
+    use_as_onboarding_question: false
+    verified_by: Timothy Spann
+    verified_at: 1762049245
