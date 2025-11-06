@@ -17,7 +17,7 @@ USE SCHEMA APP;
 -- 1. COMMUNITY DETECTION - LOUVAIN
 -- ============================================
 -- Detect ghost communities and networks
--- https://neo4j.com/docs/snowflake-graph-analytics/current/graph-algorithms/louvain/
+-- https://neo4j.com/docs/snowflake-graph-analytics/current/algorithms/louvain/#_using_intermediate_communities
 
 CREATE OR REPLACE TABLE NEO4J_GHOST_COMMUNITIES AS
 SELECT 
